@@ -35,9 +35,15 @@ hopeshot/
 │   │       └── StatusBanner.tsx  # Status display component
 │   ├── package.json          # Node.js dependencies
 │   └── tailwind.config.js    # Styling configuration
-├── backend/                  # FastAPI application
-│   ├── main.py              # FastAPI app with endpoints
-│   └── requirements.txt     # Python dependencies
+├── backend/
+│   ├── main.py                    # FastAPI app + unified endpoints
+│   ├── requirements.txt           # Python dependencies
+│   ├── .env                      # API keys and configuration
+│   └── services/                 # News service architecture
+│       ├── __init__.py           # Package initialization
+│       ├── news_service.py       # Unified multi-source aggregator
+│       ├── newsapi_client.py     # NewsAPI.org client
+│       └── newsdata_client.py    # NewsData.io client
 └── scripts/                  # Utility scripts (empty)
 
 ## Component Architecture
@@ -49,8 +55,15 @@ hopeshot/
   - Styling: Tailwind CSS with dynamic classes
 
 ### API Endpoints
-- **GET /** - Root endpoint with API information
-- **GET /api/test** - Connection test with sample data
+- **GET /api/news** - Multi-source news aggregation with source selection
+- **GET /api/sources** - List available and configured news sources  
+- **GET /api/sources/test** - Health check for all news source connections
+
+### News Service Layer ✨ NEW
+- **NewsService**: Orchestrates multiple news sources with concurrent fetching
+- **NewsAPIClient**: Handles NewsAPI.org integration with duplicate removal  
+- **NewsDataClient**: Manages NewsData.io API with rate limit awareness
+- **Response Normalization**: Converts different API formats to unified structure
 
 ## API Testing Strategy
 

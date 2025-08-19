@@ -48,6 +48,28 @@ npm run dev
 
 ---
 
+
+### **📰 News API Setup**
+
+#### **NewsAPI.org** 
+1. Sign up at https://newsapi.org/
+2. Get your free API key (1000 requests/day)
+3. Add to `.env`: `NEWS_API_KEY=your_key_here`
+
+#### **NewsData.io**
+1. Sign up at https://newsdata.io/
+2. Get your free API key (200 requests/day, 10 articles max)
+3. Add to `.env`: `NEWSDATA_API_KEY=your_key_here`
+
+#### **Verification**
+```bash
+# Test all news sources
+curl http://localhost:8000/api/sources/test
+
+# Expected: Both newsapi and newsdata show "success"
+
+---
+
 ## ✅ **Verification Steps**
 
 ### **🔧 Test Backend**
