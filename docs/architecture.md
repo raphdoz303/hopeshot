@@ -18,6 +18,7 @@ hopeshot/
 ├── README.md                      # Project overview
 ├── CHANGELOG.md                   # Version history  
 ├── .env.example                   # Environment variables template
+├── .gitignore                     # Define files to ignore for Git
 ├── docs/                          # Documentation
 │   ├── api.md                     # API endpoint documentation
 │   ├── architecture.md            # This file
