@@ -37,6 +37,11 @@ hopeshot/
 │   ├── requirements.txt           # Python dependencies
 │   ├── .env                       # API keys and configuration
 │   └── services/                  # Multi-source news architecture
+│       ├── sentiment/                        # Sentiment analysis service folder
+│       │   ├── __init__.py                   # Package initialization
+│       │   ├── base_analyzer.py
+│       │   ├── sentiment_service.py           
+│   │   │   └── transformers_analyzer.py 
 │       ├── __init__.py           # Package initialization
 │       ├── base_client.py        # Abstract base class
 │       ├── newsapi_client.py     # NewsAPI.org client
