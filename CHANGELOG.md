@@ -4,6 +4,37 @@
 
 ---
 
+## [0.3.0] - 2024-08-19
+
+### Added
+- **Service-oriented architecture** with modular news clients
+- **AFP integration** with OAuth2 password grant authentication
+- **Multi-source orchestration** combining AFP + NewsAPI + NewsData
+- **Priority system** for article ranking (AFP → NewsAPI → NewsData)  
+- **Cross-source duplicate detection** with 70% word similarity algorithm
+- **API source tracking** - articles include `api_source` field for quality analysis
+- **Graceful degradation** - system works with any combination of available sources
+- **Enhanced error reporting** with `sourcesUsed` and `sourcesFailed` arrays
+- New endpoints: `/health`, `/api/sources`, `/api/sources/test`, `/api/news/afp`
+
+### Changed
+- **Replaced requests with aiohttp** for async HTTP calls
+- **Refactored main.py** to use NewsService orchestrator
+- **Updated /api/news** to aggregate from all available sources
+- **Enhanced article metadata** with dual source tracking (API + publication)
+
+### Technical
+- **BaseNewsClient** abstract class for shared functionality
+- **Concurrent API fetching** for improved performance  
+- **OAuth2 token management** with automatic re-authentication
+- **Cross-API response normalization** to unified article format
+
+### Notes
+- **AFP account activation pending** - authentication works, awaiting content access
+- **Currently running on 2/3 sources** (NewsAPI + NewsData active)
+
+---
+
 ## [0.2.0] - 2024-08-18
 
 ### Added

@@ -1,155 +1,190 @@
-# Main FastAPI application for HopeShot backend
-
-from fastapi import FastAPI, HTTPException
+"""
+HopeShot FastAPI Backend
+Multi-source positive news aggregation with AFP, NewsAPI, and NewsData integration
+"""
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List
 from dotenv import load_dotenv
+import os
+from typing import Optional
 
-# Import our unified news service
+# Import our new service architecture
 from services.news_service import NewsService
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-# Create the FastAPI application instance
+# Initialize FastAPI app
 app = FastAPI(
     title="HopeShot API",
-    description="Unified positive news API aggregating multiple sources",
-    version="0.2.0"  # Updated version since we added multi-source support
+    description="Multi-source positive news aggregation service",
+    version="0.3.0"
 )
 
-# Add CORS middleware so frontend can talk to backend
+# Configure CORS for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Your Next.js frontend URL
+    allow_origins=["http://localhost:3000"],  # Next.js frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize the news service (will auto-detect available sources)
-try:
-    news_service = NewsService()
-    print(f"✅ News service initialized with sources: {news_service.get_available_sources()}")
-except ValueError as e:
-    print(f"❌ Failed to initialize news service: {e}")
-    news_service = None
+# Initialize news service (orchestrator)
+news_service = NewsService()
+
 
 @app.get("/")
 async def root():
-    """Root endpoint with API information"""
-    available_sources = news_service.get_available_sources() if news_service else []
-    
+    """Root endpoint - API status and information"""
     return {
         "message": "Hello from HopeShot backend! 🌟",
         "status": "running",
-        "version": "0.2.0",
-        "available_sources": available_sources,
-        "endpoints": [
-            "/api/news - Fetch positive news from multiple sources",
-            "/api/test - Connection test",
-            "/api/sources - List available news sources"
+        "version": "0.3.0",
+        "features": [
+            "Multi-source news aggregation",
+            "AFP professional news integration", 
+            "Positive news filtering",
+            "Cross-source duplicate removal"
         ]
     }
 
+
 @app.get("/api/test")
-async def test_connection():
-    """Test endpoint for verifying backend connectivity"""
+async def test_endpoint():
+    """Connection test endpoint for frontend verification"""
     return {
         "message": "Backend connection successful!",
         "data": {
-            "timestamp": "2024-08-18",
-            "backend_status": "healthy"
+            "timestamp": "2024-08-19",
+            "backend_status": "healthy",
+            "available_sources": news_service.get_available_sources()
         }
     }
 
+
 @app.get("/api/news")
 async def get_news(
-    q: str = "positive breakthrough innovation",  # Search query for positive news
-    language: str = "en",                        # Language code
-    articles_per_source: int = 10,               # Articles to fetch from each source
-    sources: Optional[str] = None                # Comma-separated list of sources (optional)
+    q: Optional[str] = Query(None, description="Search query for news articles"),
+    language: str = Query("en", description="Language code (en, fr, es, etc.)"),
+    pageSize: int = Query(20, ge=1, le=100, description="Number of articles to return (1-100)")
 ):
     """
-    Fetch positive news articles from multiple sources
-    
-    Args:
-        q: Search keywords (focuses on positive topics by default)
-        language: Language code (en, fr, es, etc.)  
-        articles_per_source: Number of articles to fetch from each source
-        sources: Comma-separated sources to use (e.g., "newsapi,newsdata")
-    
-    Returns:
-        Unified response with articles from all requested sources
+    Fetch positive news from all available sources
+    Combines AFP, NewsAPI, and NewsData with intelligent deduplication
     """
-    
-    # Check if news service is available
-    if not news_service:
-        raise HTTPException(
-            status_code=503, 
-            detail="News service unavailable. Check API key configuration."
-        )
-    
     try:
-        # Parse sources parameter if provided
-        source_list = None
-        if sources:
-            source_list = [s.strip() for s in sources.split(",")]
-        
-        # Fetch news using the unified service
-        result = await news_service.fetch_news(
-            query=q,
+        # Use the orchestrator to fetch from all sources
+        result = await news_service.fetch_unified_news(
+            query=q or "",
             language=language,
-            articles_per_source=articles_per_source,
-            sources=source_list
+            page_size=pageSize
         )
+        
+        if result.get('status') == 'error':
+            raise HTTPException(status_code=500, detail=result.get('error'))
         
         return result
         
     except Exception as e:
         raise HTTPException(
-            status_code=500,
+            status_code=500, 
             detail=f"Failed to fetch news: {str(e)}"
         )
 
+
 @app.get("/api/sources")
 async def get_sources():
-    """Get list of available news sources"""
-    
-    if not news_service:
-        raise HTTPException(
-            status_code=503,
-            detail="News service unavailable"
-        )
-    
-    available_sources = news_service.get_available_sources()
-    
-    return {
-        "status": "success",
-        "available_sources": available_sources,
-        "total_sources": len(available_sources)
-    }
-
-@app.get("/api/sources/test")  
-async def test_sources():
-    """Test connectivity to all configured news sources"""
-    
-    if not news_service:
-        raise HTTPException(
-            status_code=503,
-            detail="News service unavailable"
-        )
-    
+    """
+    Get information about all news sources
+    Shows which sources are configured and their priority order
+    """
     try:
-        test_results = await news_service.test_all_sources()
-        
-        return {
-            "status": "success", 
-            "source_tests": test_results
-        }
-        
+        return await news_service.get_source_info()
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Source testing failed: {str(e)}"
+            detail=f"Failed to get source info: {str(e)}"
         )
+
+
+@app.get("/api/sources/test")
+async def test_sources():
+    """
+    Test connection to all configured news sources
+    Useful for debugging API key issues and source availability
+    """
+    try:
+        return await news_service.test_all_sources()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to test sources: {str(e)}"
+        )
+
+
+@app.get("/health")
+async def health_check():
+    """
+    Comprehensive health check endpoint
+    Shows overall system status and source availability
+    """
+    try:
+        available_sources = news_service.get_available_sources()
+        source_info = await news_service.get_source_info()
+        
+        return {
+            "status": "healthy",
+            "version": "0.3.0",
+            "sources": {
+                "total_configured": len(available_sources),
+                "available_sources": available_sources,
+                "source_details": source_info.get('sources', {})
+            },
+            "system": {
+                "environment": os.getenv("ENVIRONMENT", "development"),
+                "python_version": "3.11+",
+                "fastapi_status": "running"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "error": str(e),
+            "available_sources": []
+        }
+
+
+# Optional: Add a simple endpoint to get just AFP news (for testing)
+@app.get("/api/news/afp")
+async def get_afp_news(
+    q: Optional[str] = Query(None, description="Search query"),
+    language: str = Query("en", description="Language code"),
+    pageSize: int = Query(10, ge=1, le=50, description="Number of articles")
+):
+    """Get news specifically from AFP source (for testing purposes)"""
+    try:
+        afp_client = news_service.clients['afp']
+        
+        if not afp_client.is_configured():
+            raise HTTPException(status_code=503, detail="AFP client not configured")
+        
+        result = await afp_client.fetch_news(q or "", language, pageSize)
+        
+        if result.get('status') == 'error':
+            raise HTTPException(status_code=500, detail=result.get('error'))
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AFP request failed: {str(e)}"
+        )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,25 +1,25 @@
-# ⚙️ HopeShot Setup Guide
+# HopeShot Setup Guide
 
-**Complete guide to get HopeShot running on your machine**
-
----
-
-## 📋 **Prerequisites**
-- **Python 3.11+** *(tested with 3.13.7)*
-- **Node.js 18+** *(for Next.js)*
-- **Git** *(for version control)*
+Complete guide to get HopeShot running on your machine.
 
 ---
 
-## 🚀 **Installation Steps**
+## Prerequisites
+- **Python 3.11+** (tested with 3.13.7)
+- **Node.js 18+** (for Next.js)
+- **Git** (for version control)
 
-### **1️⃣ Clone Repository**
+---
+
+## Installation Steps
+
+### 1. Clone Repository
 ```bash
 git clone https://github.com/YOUR_USERNAME/hopeshot.git
 cd hopeshot
 ```
 
-### **2️⃣ Backend Setup** *(Python/FastAPI)*
+### 2. Backend Setup (Python/FastAPI)
 ```bash
 cd backend
 
@@ -30,9 +30,15 @@ py -m pip install -r requirements.txt
 py -m uvicorn main:app --reload --port 8000
 ```
 
-🎯 **Backend will be available at**: `http://localhost:8000`
+Backend will be available at `http://localhost:8000`
 
-### **3️⃣ Frontend Setup** *(Next.js/React)*
+**Dependencies**:
+- `fastapi>=0.68.0` - Web framework
+- `uvicorn>=0.15.0` - ASGI server
+- `python-dotenv>=0.19.0` - Environment variable management
+- `aiohttp>=3.8.0` - Async HTTP client for concurrent API calls
+
+### 3. Frontend Setup (Next.js/React)
 ```bash
 # From project root
 cd frontend
@@ -44,112 +50,117 @@ npm install
 npm run dev
 ```
 
-🎯 **Frontend will be available at**: `http://localhost:3000`
+Frontend will be available at `http://localhost:3000`
 
 ---
 
+## News API Configuration
 
-### **📰 News API Setup**
-
-#### **NewsAPI.org** 
+### NewsAPI.org
 1. Sign up at https://newsapi.org/
 2. Get your free API key (1000 requests/day)
 3. Add to `.env`: `NEWS_API_KEY=your_key_here`
 
-#### **NewsData.io**
+### NewsData.io
 1. Sign up at https://newsdata.io/
 2. Get your free API key (200 requests/day, 10 articles max)
 3. Add to `.env`: `NEWSDATA_API_KEY=your_key_here`
 
-#### **Verification**
+### AFP (Agence France-Presse)
+1. Contact AFP sales for API access
+2. Requires content subscription for article access
+3. Add all 4 credentials to `.env`:
+   ```bash
+   AFP_CLIENT_ID=your_client_id
+   AFP_CLIENT_SECRET=your_client_secret
+   AFP_USERNAME=your_email@example.com
+   AFP_PASSWORD=your_password
+   ```
+
+---
+
+## Verification
+
+### Test Backend Endpoints
+Visit these URLs in your browser:
+- `http://localhost:8000/` - Root endpoint
+- `http://localhost:8000/health` - System health check
+- `http://localhost:8000/api/sources` - Source configuration
+- `http://localhost:8000/api/sources/test` - Source connectivity
+
+### Test Frontend
+- `http://localhost:3000/` - Homepage
+- `http://localhost:3000/test` - API testing interface
+
+### Test Multi-Source System
 ```bash
-# Test all news sources
+# Test source availability
+curl http://localhost:8000/api/sources
+
+# Test source connections
 curl http://localhost:8000/api/sources/test
 
-# Expected: Both newsapi and newsdata show "success"
+# Test unified news aggregation (currently 2/3 sources active)
+curl "http://localhost:8000/api/news?pageSize=5" 
+
+# Test specific source (for debugging)
+curl http://localhost:8000/api/news/afp?pageSize=2
+```
+
+**Expected Results**:
+- NewsAPI + NewsData should show success
+- AFP should authenticate successfully but return 0 articles (pending subscription)
+- Articles should include `api_source` field
+- Response should show `sourcesUsed` and `sourcesFailed` arrays
 
 ---
 
-## ✅ **Verification Steps**
+## Development Workflow
 
-### **🔧 Test Backend**
-Visit these URLs in your browser:
-- 🏠 `http://localhost:8000/` - *Root endpoint*
-- 🧪 `http://localhost:8000/api/test` - *Test endpoint*
-
-### **🎨 Test Frontend**
-- 🏠 `http://localhost:3000/` - *Homepage*
-- 🧪 `http://localhost:3000/test` - *API testing interface*
-
-### **🔄 Test Full-Stack Communication**
-1. ✅ Ensure both servers are running
-2. 🌐 Visit `http://localhost:3000/test`
-3. 🖱️ Click the API test buttons
-4. 📄 Verify JSON responses appear
-
----
-
-## 💻 **Development Workflow**
-
-### **🏁 Starting Development Session**
+### Starting Development Session
 ```bash
-# Terminal 1: Backend
+# Terminal 1: Backend  
 cd backend
 py -m uvicorn main:app --reload --port 8000
 
-# Terminal 2: Frontend  
+# Terminal 2: Frontend
 cd frontend
 npm run dev
 ```
 
-### **📝 Making Changes**
-1. **Edit** code files
-2. **Auto-reload** - servers automatically restart *(hot reload enabled)*
-3. **Test** changes in browser
-4. **Commit** when feature is complete
+### Making Changes
+1. Edit code files
+2. Servers automatically restart (hot reload enabled)
+3. Test changes in browser
+4. Commit when feature is complete
 
 ---
 
-## 🛠️ **Troubleshooting**
+## Troubleshooting
 
-### **⚠️ Common Issues**
+### Common Issues
 
-**🐍 Python/pip not found**:
+**Python/pip not found**:
 - Use `py` instead of `python`
 - Use `py -m pip` instead of `pip`
 
-**📦 Package installation errors**:
+**Package installation errors**:
 - Update `requirements.txt` to use `>=` instead of `==` for version flexibility
 
-**🌐 CORS errors in browser**:
+**CORS errors in browser**:
 - Ensure backend CORS middleware allows `http://localhost:3000`
 - Check that both servers are running
 
-**🚪 Port conflicts**:
-- **Backend**: Change `--port 8000` to another port
-- **Frontend**: Next.js will auto-suggest alternative ports
+**Port conflicts**:
+- Backend: Change `--port 8000` to another port
+- Frontend: Next.js will auto-suggest alternative ports
 
-### **🆘 Getting Help**
-- 🔍 Check browser developer console for frontend errors
-- 📺 Check terminal output for backend errors  
-- 🧪 Use the test page at `/test` to isolate API issues
-
----
-
-## 📁 **Project Structure**
-```
-hopeshot/
-├── 📄 .env.example      # Environment variables template
-├── 📖 README.md         # Project overview
-├── 🐍 backend/          # FastAPI application
-│   ├── main.py         # Main application file
-│   └── requirements.txt
-├── ⚛️  frontend/         # Next.js application
-│   ├── src/            # Source code
-│   └── package.json
-└── 📚 docs/             # Documentation
-```
+### Getting Help
+- Check browser developer console for frontend errors
+- Check terminal output for backend errors  
+- Use the test page at `/test` to isolate API issues
 
 ---
 
-*🔧 Last updated: **August 17, 2024*** | *⚡ Ready to build something amazing!*
+*Last updated: August 19, 2025*  
+*Ready to build something amazing!*

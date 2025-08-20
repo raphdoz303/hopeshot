@@ -1,95 +1,125 @@
-# NewsAPI client service for fetching articles from NewsAPI.org
+"""
+NewsAPI.org client implementation
+Handles NewsAPI.org integration with positive news filtering
+"""
+import aiohttp
+from typing import Dict, List, Any
+from .base_client import BaseNewsClient
 
-import os
-import httpx
-from typing import List, Dict, Any, Optional
 
-class NewsAPIClient:
-    """Client for fetching news from NewsAPI.org"""
+class NewsAPIClient(BaseNewsClient):
+    """Client for NewsAPI.org service"""
     
     def __init__(self):
-        # Get configuration from environment variables
-        self.api_key = os.getenv("NEWS_API_KEY")
-        self.base_url = "https://newsapi.org/v2/everything"
-        
-        if not self.api_key:
-            raise ValueError("NEWS_API_KEY environment variable not set")
+        super().__init__("newsapi")
+        self.api_key = self.get_env_var("NEWS_API_KEY")
+        self.base_url = "https://newsapi.org/v2"
     
-    async def fetch_articles(
-        self,
-        query: str = "positive breakthrough innovation",
-        language: str = "en", 
-        page_size: int = 20
-    ) -> Dict[str, Any]:
-        """
-        Fetch articles from NewsAPI
-        
-        Args:
-            query: Search keywords for articles
-            language: Language code (en, fr, es, etc.)
-            page_size: Number of articles to fetch (1-100)
-            
-        Returns:
-            Dict with articles and metadata
-        """
-        
-        # Build request parameters
-        params = {
-            "q": query,
-            "language": language,
-            "pageSize": page_size,
-            "sortBy": "publishedAt",
-            "apiKey": self.api_key
-        }
+    def is_configured(self) -> bool:
+        """Check if NewsAPI key is configured"""
+        return self.api_key is not None and len(self.api_key) > 0
+    
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test NewsAPI connection"""
+        if not self.is_configured():
+            return {
+                'source': self.source_name,
+                'status': 'error',
+                'message': 'NEWS_API_KEY not configured'
+            }
         
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(self.base_url, params=params)
-                response.raise_for_status()
-                
-                data = response.json()
-                
-                # Remove duplicates within NewsAPI results
-                articles = self._remove_duplicates(data.get("articles", []))
-                
-                return {
-                    "source": "newsapi",
-                    "total_results": data.get("totalResults", 0),
-                    "articles": articles,
-                    "requested_count": page_size,
-                    "unique_count": len(articles)
+            # Test with minimal request
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.base_url}/everything"
+                params = {
+                    'q': 'test',
+                    'pageSize': 1,
+                    'apiKey': self.api_key
                 }
                 
-        except httpx.HTTPError as e:
-            raise Exception(f"NewsAPI request failed: {str(e)}")
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        return {
+                            'source': self.source_name,
+                            'status': 'success',
+                            'message': 'Connected successfully'
+                        }
+                    else:
+                        return {
+                            'source': self.source_name,
+                            'status': 'error',
+                            'message': f'HTTP {response.status}'
+                        }
+        
         except Exception as e:
-            raise Exception(f"NewsAPI unexpected error: {str(e)}")
+            return {
+                'source': self.source_name,
+                'status': 'error',
+                'message': f'Connection failed: {str(e)}'
+            }
     
-    def _remove_duplicates(self, articles: List[Dict]) -> List[Dict]:
-        """Remove duplicate articles based on title"""
-        unique_articles = []
-        seen_titles = set()
+    async def fetch_news(self, query: str = "", language: str = "en", page_size: int = 20) -> Dict[str, Any]:
+        """Fetch positive news from NewsAPI"""
+        if not self.is_configured():
+            return self.format_error_response("NEWS_API_KEY not configured")
         
-        for article in articles:
-            title = article.get("title", "").strip().lower()
-            if title and title not in seen_titles:
-                seen_titles.add(title)
-                # Normalize article format
-                normalized_article = self._normalize_article(article)
-                unique_articles.append(normalized_article)
+        # Default to positive keywords if no query provided
+        if not query:
+            query = "positive breakthrough innovation hope success"
         
-        return unique_articles
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.base_url}/everything"
+                params = {
+                    'q': query,
+                    'language': language,
+                    'sortBy': 'relevancy',
+                    'pageSize': min(page_size, 100),  # NewsAPI max is 100
+                    'apiKey': self.api_key
+                }
+                
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        # Normalize articles
+                        normalized_articles = [
+                            self.normalize_article(article) 
+                            for article in data.get('articles', [])
+                        ]
+                        
+                        # Remove duplicates
+                        unique_articles = self.remove_duplicates(normalized_articles)
+                        
+                        return {
+                            'status': 'success',
+                            'source': self.source_name,
+                            'totalResults': data.get('totalResults', 0),
+                            'articles': unique_articles
+                        }
+                    else:
+                        error_data = await response.json()
+                        return self.format_error_response(
+                            f"NewsAPI error: {error_data.get('message', 'Unknown error')}"
+                        )
+        
+        except Exception as e:
+            return self.format_error_response(f"Request failed: {str(e)}")
     
-    def _normalize_article(self, article: Dict) -> Dict:
+    def normalize_article(self, raw_article: Dict[str, Any]) -> Dict[str, Any]:
         """Convert NewsAPI article to standard format"""
-        return {
-            "title": article.get("title", ""),
-            "description": article.get("description", ""),
-            "url": article.get("url", ""),
-            "image_url": article.get("urlToImage", ""),
-            "source_name": article.get("source", {}).get("name", "Unknown"),
-            "author": article.get("author", ""),
-            "published_at": article.get("publishedAt", ""),
-            "content_preview": article.get("content", "")[:200] + "..." if article.get("content") else "",
-            "source_api": "newsapi"
-        }
+        # NewsAPI already uses our standard format, just ensure all fields exist
+        normalized = self.base_article_structure.copy()
+        normalized.update({
+            'title': raw_article.get('title', ''),
+            'description': raw_article.get('description', ''),
+            'url': raw_article.get('url', ''),
+            'urlToImage': raw_article.get('urlToImage'),
+            'source': raw_article.get('source', {'id': '', 'name': ''}),
+            'author': raw_article.get('author'),
+            'publishedAt': raw_article.get('publishedAt', ''),
+            'content': raw_article.get('content'),
+            'api_source': 'newsapi'  # Track which API provided this article
+        })
+        return normalized

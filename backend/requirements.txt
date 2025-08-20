@@ -1,7 +1,19 @@
-# Python 3.13 packages needed for HopeShot backend
+## HopeShot Backend Dependencies
 
-fastapi>=0.110.0
-uvicorn>=0.27.0
-python-dotenv>=1.0.0
-pydantic>=2.7.0
-httpx>=0.27.0
+## Web Framework
+fastapi>=0.100.0      # Our API framework
+uvicorn>=0.23.0       # Server to run FastAPI
+
+## HTTP Requests
+# DEPRECATED - requests>=2.31.0      # because synchronous and blocks
+aiohttp>=3.8.0       # For asynchronous HTTP requests to external APIs
+
+## Environment Variables
+python-dotenv>=1.0.0  # For loading .env files
+
+## CORS Support
+# (Note: fastapi includes this, but explicit is better)
+
+## Future additions (uncomment when needed):
+# vaderSentiment>=3.3.2  # For sentiment analysis
+# cachetools>=5.3.0      # For caching API responses

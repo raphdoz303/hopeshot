@@ -1,78 +1,62 @@
-# 🚀 HopeShot API Documentation
+# HopeShot API Documentation
 
----
-
-## 🌐 **Base URL**
+## Base URL
 - **Development**: `http://localhost:8000`
 - **Production**: *TBD*
 
 ---
 
-## 📋 **Available Endpoints**
+## Core Endpoints
 
-### 🏠 **GET /** 
-**Description**: Root endpoint providing basic API information
+### **GET /**
+Root endpoint providing basic API information.
 
 **Response**:
 ```json
 {
   "message": "Hello from HopeShot backend! 🌟",
   "status": "running",
-  "version": "0.1.0"
+  "version": "0.3.0",
+  "features": [
+    "Multi-source news aggregation",
+    "AFP professional news integration", 
+    "Positive news filtering",
+    "Cross-source duplicate removal"
+  ]
 }
 ```
 
-**Status Codes**:
-- ✅ `200 OK`: Successful response
-
 ---
 
-### 🧪 **GET /api/test**
-**Description**: Connection test endpoint with sample data
-
-**Response**:
-```json
-{
-  "message": "Backend connection successful!",
-  "data": {
-    "timestamp": "2024-01-01",
-    "backend_status": "healthy"
-  }
-}
-```
-
-**Status Codes**:
-- ✅ `200 OK`: Successful response
-
----
-
-### 📰 **GET /api/news**
-**Description**: Fetch positive news articles from NewsAPI with automatic duplicate removal
+### **GET /api/news**
+Fetch positive news from all available sources with intelligent aggregation.
 
 **Query Parameters**:
-- `q` (optional): Search keywords (default: "positive breakthrough innovation")
+- `q` (optional): Search keywords (default: positive keywords per source)
 - `language` (optional): Language code (default: "en")  
-- `pageSize` (optional): Number of articles to request (1-100, default: 20)
+- `pageSize` (optional): Number of articles to return (1-100, default: 20)
 
-**Example Requests**:
-```
-GET /api/news
-GET /api/news?q=medical breakthrough&pageSize=10
-GET /api/news?q=space discovery&language=en&pageSize=5
+**Example Request**:
+```bash
+curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=10"
 ```
 
 **Response**:
 ```json
 {
   "status": "success",
-  "totalResults": 150,
-  "requestedCount": 10,
-  "uniqueArticles": 8,
-  "duplicatesRemoved": 2,
+  "query": "medical breakthrough",
+  "totalSources": 3,
+  "sourcesUsed": ["newsapi", "newsdata"],
+  "sourcesFailed": [
+    {"source": "afp", "error": "Content subscription required"}
+  ],
+  "totalArticles": 8,
+  "crossSourceDuplicatesRemoved": 2,
   "articles": [
     {
       "title": "Medical Breakthrough: New Treatment Shows Promise",
-      "description": "Scientists discover innovative approach to treating...",
+      "description": "Scientists discover innovative approach...",
       "url": "https://example.com/article",
       "urlToImage": "https://example.com/image.jpg",
       "source": {
@@ -80,134 +64,227 @@ GET /api/news?q=space discovery&language=en&pageSize=5
         "name": "Reuters"
       },
       "author": "Jane Smith",
-      "publishedAt": "2024-08-18T10:30:00Z",
-      "content": "Full article content preview..."
+      "publishedAt": "2024-08-19T10:30:00Z",
+      "content": "Full article content preview...",
+      "api_source": "newsapi"
     }
   ]
 }
 ```
 
-**Response Fields Explained**:
-- `totalResults`: Total articles available from NewsAPI for this search
-- `requestedCount`: Number of articles requested via pageSize parameter
-- `uniqueArticles`: Number of unique articles returned (after duplicate removal)
-- `duplicatesRemoved`: Number of duplicate articles filtered out
-- `articles`: Array of unique news articles
-
-**Duplicate Removal Logic**:
-- Articles with identical titles (case-insensitive) are automatically filtered
-- Only the first occurrence of each unique title is kept
-- Helps ensure diverse content in search results
-
-**Status Codes**:
-- ✅ `200 OK`: Articles retrieved successfully
-- ❌ `400 Bad Request`: Invalid parameters
-- ❌ `500 Internal Server Error`: NewsAPI error or server issue
+**Priority System**:
+1. **AFP** (highest quality) - Professional journalism with "inspiring" genre filter
+2. **NewsAPI** (mainstream) - Major news sources with positive keyword filtering  
+3. **NewsData** (alternative) - International sources with category filtering
 
 ---
 
-### 📊 **GET /api/news/sources** *(Planned)*
-**Description**: Get available news sources for positive content filtering
+### **GET /api/sources**
+Get information about all news sources and their configuration.
 
-**Response** *(Future)*:
+**Response**:
 ```json
 {
-  "status": "success", 
-  "sources": [
-    {
-      "id": "bbc-news",
-      "name": "BBC News",
-      "description": "Latest national and international news from the BBC",
-      "category": "general"
+  "status": "success",
+  "sources": {
+    "afp": {
+      "name": "AFP",
+      "configured": true,
+      "priority": 1
+    },
+    "newsapi": {
+      "name": "NEWSAPI", 
+      "configured": true,
+      "priority": 2
+    },
+    "newsdata": {
+      "name": "NEWSDATA",
+      "configured": true, 
+      "priority": 3
     }
-  ]
+  },
+  "priority_order": ["afp", "newsapi", "newsdata"]
 }
 ```
 
 ---
 
-## 🚨 **Error Handling**
+### **GET /api/sources/test**
+Test connection to all configured news sources.
+
+**Response**:
+```json
+{
+  "status": "success",
+  "sources_tested": 3,
+  "results": {
+    "newsapi": {
+      "source": "newsapi",
+      "status": "success", 
+      "message": "Connected successfully"
+    },
+    "newsdata": {
+      "source": "newsdata",
+      "status": "success",
+      "message": "Connected successfully"  
+    },
+    "afp": {
+      "source": "afp",
+      "status": "success",
+      "message": "Connected and authenticated successfully"
+    }
+  }
+}
+```
+
+---
+
+### **GET /health**
+Comprehensive system health check.
+
+**Response**:
+```json
+{
+  "status": "healthy",
+  "version": "0.3.0", 
+  "sources": {
+    "total_configured": 3,
+    "available_sources": ["newsapi", "newsdata", "afp"],
+    "source_details": {
+      "afp": {"name": "AFP", "configured": true, "priority": 1},
+      "newsapi": {"name": "NEWSAPI", "configured": true, "priority": 2}, 
+      "newsdata": {"name": "NEWSDATA", "configured": true, "priority": 3}
+    }
+  },
+  "system": {
+    "environment": "development",
+    "python_version": "3.11+",
+    "fastapi_status": "running"
+  }
+}
+```
+
+---
+
+### **GET /api/test**
+Connection test endpoint for frontend verification.
+
+**Response**:
+```json
+{
+  "message": "Backend connection successful!",
+  "data": {
+    "timestamp": "2024-08-19",
+    "backend_status": "healthy",
+    "available_sources": ["newsapi", "newsdata"]
+  }
+}
+```
+
+---
+
+### **GET /api/news/afp**
+Get news specifically from AFP source (testing endpoint).
+
+**Query Parameters**: Same as main `/api/news` endpoint
+
+**Response**: Standard article format with only AFP results
+
+---
+
+## Error Handling
 
 ### Standard Error Response
 ```json
 {
-  "error": "Error description"
+  "detail": "Error description"
 }
 ```
 
-### Common Error Examples
-```json
-{
-  "error": "NEWS_API_KEY not configured"
-}
-```
-
-```json
-{
-  "error": "Failed to fetch news: HTTP error! status: 429"
-}
-```
+### Common Errors
+- `NEWS_API_KEY not configured`
+- `Failed to fetch news: HTTP error! status: 429`
+- `AFP authentication failed - check credentials`
 
 ### Status Codes
-- ✅ `200 OK`: Request successful
-- ❌ `400 Bad Request`: Invalid request parameters
-- ❌ `404 Not Found`: Endpoint not found
-- ❌ `429 Too Many Requests`: NewsAPI rate limit exceeded
-- ❌ `500 Internal Server Error`: Server or NewsAPI error
+- `200 OK` - Request successful
+- `400 Bad Request` - Invalid request parameters
+- `404 Not Found` - Endpoint not found
+- `429 Too Many Requests` - API rate limit exceeded
+- `500 Internal Server Error` - Server or API error
+- `503 Service Unavailable` - Source not configured
 
 ---
 
-## 🔧 **CORS Configuration**
+## CORS Configuration
 - **Allowed Origins**: `http://localhost:3000` (Next.js frontend)
-- **Allowed Methods**: All (`*`)
-- **Allowed Headers**: All (`*`)
+- **Methods**: All
+- **Headers**: All
 - **Credentials**: Enabled
 
 ---
 
-## 🧪 **Testing**
+## Testing
 
 ### Manual Testing Interface
-- **URL**: `http://localhost:3000/test`
-- **Features**: Interactive buttons to test all endpoints
-- **Response Display**: Formatted JSON with error handling
+Visit `http://localhost:3000/test` for interactive API testing with buttons and formatted JSON responses.
 
 ### Direct API Calls
 ```bash
-# Test root endpoint
-curl http://localhost:8000/
+# Test system health
+curl http://localhost:8000/health
 
-# Test connection
-curl http://localhost:8000/api/test
+# Test source availability
+curl http://localhost:8000/api/sources
 
-# Test news API (default positive search)
-curl http://localhost:8000/api/news
+# Test source connections
+curl http://localhost:8000/api/sources/test
 
-# Test news API with custom parameters
-curl "http://localhost:8000/api/news?q=renewable%20energy&pageSize=5"
+# Test unified news aggregation
+curl "http://localhost:8000/api/news?pageSize=5"
+
+# Test with custom search
+curl "http://localhost:8000/api/news?q=renewable%20energy&pageSize=10"
 ```
 
 ### Testing Tips
 - Use small `pageSize` values (5-10) for faster testing
-- Check the `duplicatesRemoved` field to see filtering in action
-- Try different search terms: "medical breakthrough", "clean energy", "scientific discovery"
+- Check `crossSourceDuplicatesRemoved` field to verify deduplication
+- Monitor `sourcesUsed` and `sourcesFailed` arrays for source health
+- Try positive search terms: "medical breakthrough", "clean energy", "scientific discovery"
 
 ---
 
-## 🚀 **Future Endpoints** *(Roadmap)*
+## Environment Configuration
+
+Required environment variables in `.env` file:
+
+```bash
+# NewsAPI.org (1000 requests/day free)
+NEWS_API_KEY=your_newsapi_key_here
+
+# NewsData.io (200 requests/day free)  
+NEWSDATA_API_KEY=your_newsdata_key_here
+
+# AFP (Professional news service)
+AFP_CLIENT_ID=your_afp_client_id
+AFP_CLIENT_SECRET=your_afp_client_secret
+AFP_USERNAME=your_afp_email@example.com
+AFP_PASSWORD=your_afp_password
+
+# Optional
+ENVIRONMENT=development
+```
+
+---
+
+## Future Endpoints (Roadmap)
 - `POST /api/analyze` - Analyze article sentiment with AI
-- `GET /api/health` - Detailed system health check
 - `GET /api/news/categories` - Get news by positive categories
 - `POST /api/feedback` - Submit article quality feedback
 
 ---
 
-## 🔑 **Environment Configuration**
-- **Required**: `NEWS_API_KEY` - Your NewsAPI.org API key
-- **Optional**: `NEWS_API_BASE_URL` - NewsAPI base URL (defaults to official API)
-
----
-
-*📅 Last Updated: August 18, 2025*  
-*🔢 API Version: 0.1.0*  
-*🏗️ Built with FastAPI + NewsAPI integration*
+*Last Updated: August 19, 2025*  
+*API Version: 0.3.0*  
+*Built with FastAPI + Multi-source integration*
