@@ -192,6 +192,41 @@ Get news specifically from AFP source (testing endpoint).
 
 ---
 
+## Enhanced Endpoints
+
+### **GET /api/news** (Updated)
+Fetch positive news with integrated sentiment analysis.
+
+**New Response Fields**:
+```json
+{
+  "sentiment_analyzed": true,
+  "analyzed_sources": ["newsapi", "newsdata"],
+  "articles": [
+    {
+      "title": "...",
+      "api_source": "newsapi",
+      "uplift_score": 0.652,
+      "sentiment_analysis": {
+        "sentiment": {"positive": 0.945, "negative": 0.055, "neutral": 0.0},
+        "confidence": 0.847,
+        "raw_emotions": {
+          "anger": 0.012, "disgust": 0.008, "fear": 0.043,
+          "joy": 0.234, "neutral": 0.589, "sadness": 0.015, "surprise": 0.099
+        },
+        "uplift_emotions": {
+          "joy": 0.234, "hope": 0.423, "gratitude": 0.376,
+          "awe": 0.099, "relief": 0.471, "compassion": 0.398
+        },
+        "uplift_score": 0.652,
+        "analyzer": "transformers"
+      }
+    }
+  ]
+}
+
+---
+
 ## Error Handling
 
 ### Standard Error Response

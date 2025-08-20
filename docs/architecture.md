@@ -104,6 +104,21 @@ hopeshot/
 - **Purpose**: Visual testing of backend API endpoints
 - **Features**: Interactive buttons, real-time response display, error handling
 
+## Sentiment Analysis Architecture
+
+### Service Layer Design
+- **SentimentService**: Multi-analyzer orchestrator ready for VADER, OpenAI integration
+- **TransformersAnalyzer**: Primary analyzer using dual-model approach (sentiment + emotions)
+- **Weighted Scoring System**: Custom uplift calculation prioritizing hope and awe over joy
+
+### Data Flow Enhancement
+News Service → Articles → Sentiment Service → Enhanced Articles with Uplift Scores
+
+### Integration Points
+- **Main API**: `/api/news` endpoint includes sentiment analysis for NewsAPI + NewsData
+- **Source Filtering**: AFP articles excluded (use native positive filtering)
+- **Frontend**: Test page displays sentiment data in enhanced JSON format
+
 ## Development Approach
 1. **Documentation First** - Always document before coding
 2. **Small Steps** - One feature at a time with testing

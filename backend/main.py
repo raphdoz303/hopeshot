@@ -7,12 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 from typing import Optional
+from services.sentiment.sentiment_service import SentimentService
+
 
 # Import our new service architecture
 from services.news_service import NewsService
 
-# Load environment variables
+# Load variables
 load_dotenv()
+sentiment_service = SentimentService()
+news_service = NewsService()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -29,10 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize news service (orchestrator)
-news_service = NewsService()
-
 
 @app.get("/")
 async def root():
@@ -65,32 +65,43 @@ async def test_endpoint():
 
 @app.get("/api/news")
 async def get_news(
-    q: Optional[str] = Query(None, description="Search query for news articles"),
-    language: str = Query("en", description="Language code (en, fr, es, etc.)"),
-    pageSize: int = Query(20, ge=1, le=100, description="Number of articles to return (1-100)")
+    q: str = None,
+    language: str = "en", 
+    pageSize: int = 20
 ):
-    """
-    Fetch positive news from all available sources
-    Combines AFP, NewsAPI, and NewsData with intelligent deduplication
-    """
+    """Get unified news from all available sources with sentiment analysis."""
     try:
-        # Use the orchestrator to fetch from all sources
+        # Get news from all sources (your existing code)
         result = await news_service.fetch_unified_news(
-            query=q or "",
+            query=q,
             language=language,
-            page_size=pageSize
+            page_size=min(pageSize, 100)
         )
         
-        if result.get('status') == 'error':
-            raise HTTPException(status_code=500, detail=result.get('error'))
+        # NEW: Add sentiment analysis to articles from NewsAPI and NewsData only
+        if result.get("articles"):
+            analyzed_articles = []
+            
+            for article in result["articles"]:
+                # Only analyze NewsAPI and NewsData articles (skip AFP for now)
+                api_source = article.get("api_source", "")
+                
+                if api_source in ["newsapi", "newsdata"]:
+                    # Add sentiment analysis
+                    enhanced_article = sentiment_service.analyze_article_sentiment(article)
+                    analyzed_articles.append(enhanced_article)
+                else:
+                    # Keep AFP articles without sentiment (they have their own filters)
+                    analyzed_articles.append(article)
+            
+            result["articles"] = analyzed_articles
+            result["sentiment_analyzed"] = True
+            result["analyzed_sources"] = ["newsapi", "newsdata"]
         
         return result
         
     except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Failed to fetch news: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
 
 
 @app.get("/api/sources")

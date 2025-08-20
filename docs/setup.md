@@ -26,6 +26,10 @@ cd backend
 # Install Python dependencies
 py -m pip install -r requirements.txt
 
+# Note: First run will download ML models (~500MB)
+# Test sentiment analysis installation
+py -c "import transformers; import torch; print('✅ Sentiment analysis ready')"
+
 # Start development server
 py -m uvicorn main:app --reload --port 8000
 ```
@@ -37,6 +41,10 @@ Backend will be available at `http://localhost:8000`
 - `uvicorn>=0.15.0` - ASGI server
 - `python-dotenv>=0.19.0` - Environment variable management
 - `aiohttp>=3.8.0` - Async HTTP client for concurrent API calls
+- `transformers>=4.21.0` - Hugging Face sentiment + emotion models
+- `torch>=1.13.0` - PyTorch neural network backend
+- `nltk>=3.8.0` - VADER sentiment analyzer (future use)
+- `datasets>=2.0.0` - Model download support
 
 ### 3. Frontend Setup (Next.js/React)
 ```bash
@@ -160,7 +168,33 @@ npm run dev
 - Check terminal output for backend errors  
 - Use the test page at `/test` to isolate API issues
 
+
+## Testing Sentiment Analysis
+bash# Test sentiment service directly
+py test_sentiment.py
+
+### Test API integration
+curl "http://localhost:8000/api/news?pageSize=3"
+
+Expected: Articles include sentiment_analysis field with uplift_score
+
+### Updated Frontend Testing
+Visit http://localhost:3000/test for enhanced testing interface:
+
+Test API Health - Basic connectivity check
+Test All Sources - Source configuration and connectivity
+Get Unified News - Multi-source news with sentiment analysis
+Test NewsAPI Only - Filtered NewsAPI results
+Test NewsData Only - Filtered NewsData results
+Test AFP Only - Direct AFP endpoint testing
+
+### Troubleshooting Sentiment Analysis:
+
+Slow first request: Models downloading (~2-3 minutes initial setup)
+High memory usage: Transformers models require ~1GB RAM
+Missing sentiment data: Check that articles are from NewsAPI/NewsData (not AFP)
+
 ---
 
-*Last updated: August 19, 2025*  
+*Last updated: August 20, 2025*  
 *Ready to build something amazing!*

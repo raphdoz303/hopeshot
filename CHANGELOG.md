@@ -4,6 +4,39 @@
 
 ---
 
+## [0.4.0] - 2025-08-20
+
+### Added
+- **Complete sentiment analysis system** using Transformers (Hugging Face)
+- **Weighted emotion scoring** with custom uplift calculation (Hope×2.0, Awe×1.8, etc.)
+- **Raw emotion tracking** - Store basic emotions (anger, fear, joy) + derived uplift emotions
+- **Model-based confidence scoring** using actual transformer model confidence
+- **Enhanced frontend test page** with 6 source-specific buttons for comprehensive testing
+- **Sentiment integration** into `/api/news` endpoint for NewsAPI & NewsData articles
+
+### Changed
+- **Updated test page** - Complete rewrite with improved JSON display and source filtering
+- **Enhanced API responses** - Articles now include `sentiment_analysis` and `uplift_score` fields
+- **Improved response formatting** - Better visibility of source tracking and sentiment data
+
+### Technical
+- **Modular sentiment architecture** in `services/sentiment/` package
+- **Dual-model analysis** - Separate sentiment and emotion detection models
+- **Extensible analyzer pattern** - Ready for VADER, OpenAI, and custom AI integration
+- **Source-specific analysis** - Only NewsAPI/NewsData articles analyzed (AFP uses built-in filters)
+
+### Dependencies
+- Added `transformers>=4.21.0` for sentiment/emotion models
+- Added `torch>=1.13.0` for neural network backend
+- Added `nltk>=3.8.0` for future VADER integration
+
+### Notes
+- **Scoring calibration needed** - Current uplift scores too high for neutral business news
+- **AFP articles excluded** from sentiment analysis (relies on native filtering)
+- **Models downloaded on first run** (~500MB initial download)
+
+---
+
 ## [0.3.0] - 2024-08-19
 
 ### Added
