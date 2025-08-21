@@ -4,6 +4,38 @@
 
 ---
 
+## [0.5.0] - 2025-08-21
+
+### Added
+- **Complete Google Sheets integration** with service account authentication
+- **Real-time data logging pipeline** - All `/api/news` calls automatically log articles to Google Sheets
+- **Data flattening service** - Converts complex article + sentiment data into 25-column spreadsheet rows
+- **Batch article logging** with error handling and graceful degradation
+- **Enhanced API responses** - Added `sheets_logged` and `total_logged` metadata fields
+- **Structured data collection** - 25 predefined columns including all sentiment metrics for analysis
+
+### Changed
+- **Enhanced `/api/news` endpoint** - Now includes automatic Google Sheets logging with full pipeline
+- **Updated security configuration** - Protected Google Sheets credentials with enhanced .gitignore
+- **Improved error handling** - Sheets logging failures don't impact API responses
+
+### Technical
+- **SheetsService architecture** - Modular Google Sheets integration ready for batch operations
+- **Service account authentication** - Automated Google Sheets access without user intervention
+- **Flat data schema** - Structured 25-column format for consistent sentiment analysis research
+- **Real-time data pipeline** - News APIs → Sentiment Analysis → Google Sheets integration
+
+### Dependencies
+- Added `google-api-python-client>=2.0.0` for Google Sheets API access
+- Added `google-auth>=2.0.0` and related authentication libraries
+
+### Notes
+- **Data collection active** - All API calls now generate research data for sentiment algorithm improvement
+- **Neutral scoring confirmed** - Transformers models correctly return 0 for neutral business articles
+- **Ready for analysis** - Complete data pipeline enables sentiment formula calibration
+
+---
+
 ## [0.4.0] - 2025-08-20
 
 ### Added

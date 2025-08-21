@@ -164,6 +164,16 @@ credentials.json
 *.key
 *.crt
 
+# Google Sheets credentials (CRITICAL)
+gsheetapi_credentials.json
+*-*.json
+hopeshot-*.json
+
+# Test files (cleanup)
+test_*.py
+debug_*.py
+temp_*.py
+
 # =============================================================================
 # PROJECT-SPECIFIC EXCLUSIONS
 # =============================================================================
@@ -178,3 +188,5 @@ credentials.json
 # Exclude debug/temp files but keep important project files
 !backend/test_sentiment.py
 !backend/debug_emotions.py
+!test_sentiment.py
+!backend/test_sentiment.py

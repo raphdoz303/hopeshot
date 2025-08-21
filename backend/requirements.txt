@@ -19,3 +19,10 @@ transformers>=4.21.0
 torch>=1.13.0
 nltk>=3.8.0
 datasets>=2.0.0
+
+## Link for Google Sheet API
+# Note: This is for Google Sheets integration, not the main API
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=0.5.0
+google-auth-httplib2>=0.1.0

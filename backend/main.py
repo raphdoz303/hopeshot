@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 import os
 from typing import Optional
 from services.sentiment.sentiment_service import SentimentService
+from services.sheets_service import SheetsService
 
+# Initialize sheets service globally
+sheets_service = SheetsService()
 
 # Import our new service architecture
 from services.news_service import NewsService
@@ -66,39 +69,59 @@ async def test_endpoint():
 @app.get("/api/news")
 async def get_news(
     q: str = None,
-    language: str = "en", 
+    language: str = "en",
     pageSize: int = 20
 ):
-    """Get unified news from all available sources with sentiment analysis."""
+    """Get unified news from all available sources with sentiment analysis and Google Sheets logging"""
+    
     try:
-        # Get news from all sources (your existing code)
+        # Get news from all sources
         result = await news_service.fetch_unified_news(
             query=q,
             language=language,
-            page_size=min(pageSize, 100)
+            page_size=pageSize
         )
         
-        # NEW: Add sentiment analysis to articles from NewsAPI and NewsData only
-        if result.get("articles"):
-            analyzed_articles = []
-            
-            for article in result["articles"]:
-                # Only analyze NewsAPI and NewsData articles (skip AFP for now)
-                api_source = article.get("api_source", "")
-                
-                if api_source in ["newsapi", "newsdata"]:
-                    # Add sentiment analysis
-                    enhanced_article = sentiment_service.analyze_article_sentiment(article)
-                    analyzed_articles.append(enhanced_article)
-                else:
-                    # Keep AFP articles without sentiment (they have their own filters)
-                    analyzed_articles.append(article)
-            
-            result["articles"] = analyzed_articles
-            result["sentiment_analyzed"] = True
-            result["analyzed_sources"] = ["newsapi", "newsdata"]
+        # Analyze sentiment for applicable articles
+        analyzed_articles = []
+        sentiment_analyzed = False
+        analyzed_sources = []
         
-        return result
+        for article in result["articles"]:
+            api_source = article.get("api_source", "")
+            
+            # Only analyze NewsAPI and NewsData articles
+            if api_source in ["newsapi", "newsdata"]:
+                try:
+                    sentiment_result = sentiment_service.analyze_article_sentiment(article)
+                    article.update(sentiment_result)
+                    sentiment_analyzed = True
+                    if api_source not in analyzed_sources:
+                        analyzed_sources.append(api_source)
+                except Exception as e:
+                    print(f"Sentiment analysis failed for {api_source} article: {e}")
+            
+            analyzed_articles.append(article)
+        
+        # Log articles to Google Sheets
+        try:
+            sheets_service.log_articles(analyzed_articles)
+            sheets_logged = True
+        except Exception as e:
+            print(f"Failed to log to Google Sheets: {e}")
+            sheets_logged = False
+        
+        # Build response with enhanced metadata
+        response = {
+            **result,  # Include all original fields
+            "articles": analyzed_articles,
+            "sentiment_analyzed": sentiment_analyzed,
+            "analyzed_sources": analyzed_sources,
+            "sheets_logged": sheets_logged,
+            "total_logged": len(analyzed_articles)
+        }
+        
+        return response
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
