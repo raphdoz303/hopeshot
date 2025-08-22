@@ -123,6 +123,89 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=10"
 - ✅ **NewsData articles** - Full sentiment analysis with uplift scoring  
 - ❌ **AFP articles** - Excluded (uses built-in positive filtering)
 
+
+**Enhanced Response with Gemini Analysis**:
+```json
+{
+  "status": "success",
+  "query": "medical breakthrough",
+  "totalSources": 3,
+  "sourcesUsed": ["newsapi", "newsdata", "afp"],
+  "sourcesFailed": [],
+  "totalArticles": 8,
+  "crossSourceDuplicatesRemoved": 2,
+  "gemini_analyzed": true,
+  "analyzed_sources": ["newsapi", "newsdata", "afp"],
+  "sheets_logged": true,
+  "total_logged": 8,
+  "gemini_stats": {
+    "total_tokens_used": 1250,
+    "average_tokens_per_article": 156,
+    "batches_processed": 1
+  },
+  "articles": [
+    {
+      "title": "Medical Breakthrough: New Treatment Shows Promise",
+      "description": "Scientists discover innovative approach...",
+      "url": "https://example.com/article",
+      "urlToImage": "https://example.com/image.jpg",
+      "source": {
+        "id": "reuters",
+        "name": "Reuters"
+      },
+      "author": "Jane Smith",
+      "publishedAt": "2024-08-22T10:30:00Z",
+      "content": "Full article content preview...",
+      "api_source": "newsapi",
+      "gemini_analysis": {
+        "sentiment": "positive",
+        "confidence_score": 0.85,
+        "emotions": {
+          "hope": 0.8,
+          "awe": 0.6,
+          "gratitude": 0.4,
+          "compassion": 0.7,
+          "relief": 0.3,
+          "joy": 0.5
+        },
+        "categories": ["medical", "technology"],
+        "source_credibility": "high",
+        "fact_checkable_claims": "yes",
+        "evidence_quality": "strong",
+        "controversy_level": "low",
+        "solution_focused": "yes",
+        "age_appropriate": "all",
+        "truth_seeking": "no",
+        "geographic_scope": ["World", "North America"],
+        "country_focus": "United States",
+        "local_focus": "California",
+        "geographic_relevance": "primary",
+        "overall_hopefulness": 0.75,
+        "reasoning": "Medical breakthrough shows promise"
+      }
+    }
+  ]
+}
+```
+
+**New Response Fields**:
+- `gemini_analyzed`: Boolean indicating if Gemini analysis was performed
+- `analyzed_sources`: Array of sources that received Gemini analysis
+- `sheets_logged`: Boolean indicating if articles were successfully logged to Google Sheets
+- `total_logged`: Number of articles logged to sheets
+- `gemini_stats`: Token usage and processing statistics
+- `gemini_analysis`: Complete comprehensive analysis with emotions, categories, and metadata
+
+**Gemini Analysis Fields**:
+- **Sentiment**: `positive/negative/neutral` with confidence score
+- **Target Emotions** (0.0-1.0): `hope`, `awe`, `gratitude`, `compassion`, `relief`, `joy`
+- **Categories**: Dynamically discovered categories (e.g., medical, technology, environment)
+- **Fact-checking Readiness**: `source_credibility`, `fact_checkable_claims`, `evidence_quality`
+- **Content Analysis**: `controversy_level`, `solution_focused`, `age_appropriate`, `truth_seeking`
+- **Geographic Analysis**: `geographic_scope`, `country_focus`, `local_focus`, `geographic_relevance`
+- **Overall Assessment**: `overall_hopefulness` score and brief `reasoning`
+
+
 ---
 
 ### **GET /api/sources**

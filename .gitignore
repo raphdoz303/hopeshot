@@ -57,7 +57,7 @@ pip-delete-this-directory.txt
 .coverage
 htmlcov/
 
-# Machine Learning Models (downloaded by transformers)
+# Machine Learning Models (downloaded by transformers - legacy backup)
 backend/models/
 *.bin
 *.safetensors
@@ -76,6 +76,27 @@ backend/models/
 backend/.env
 
 # =============================================================================
+# AI/ML SERVICES & CREDENTIALS
+# =============================================================================
+
+# Google Sheets credentials (CRITICAL - NEVER COMMIT)
+gsheetapi_credentials.json
+*-*.json
+hopeshot-*.json
+google-sheets-*.json
+service-account-*.json
+
+# Gemini API cache and temp files
+backend/gemini_cache/
+gemini_response_*.json
+gemini_debug_*.json
+
+# Legacy AI model files and caches
+backend/ai_cache/
+backend/model_cache/
+transformers_cache/
+
+# =============================================================================
 # DEVELOPMENT & DEBUGGING
 # =============================================================================
 
@@ -90,11 +111,19 @@ yarn-error.log*
 backend/cache/
 backend/logs/
 afp_response_sample.json
+gemini_test_output.json
+analysis_debug_*.json
 
 # Temporary test files (but keep official test scripts)
 temp_*.py
 debug_*.json
 test_output.json
+quick_test_*.py
+
+# Testing artifacts
+test_results/
+test_data_*.json
+batch_test_*.json
 
 # =============================================================================
 # IDE & EDITOR FILES
@@ -151,6 +180,11 @@ $RECYCLE.BIN/
 /build
 dist/
 
+# Container files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
 # =============================================================================
 # SECURITY & SENSITIVE DATA
 # =============================================================================
@@ -164,6 +198,34 @@ credentials.json
 *.key
 *.crt
 
+# Backup of critical exclusions for AI services
+gemini_*.json
+openai_*.json
+anthropic_*.json
+
+# =============================================================================
+# DATA & ANALYTICS
+# =============================================================================
+
+# Large data files
+*.csv
+*.xlsx
+*.json
+!package.json
+!*.config.json
+!tsconfig.json
+
+# Google Sheets export files
+sheets_export_*.csv
+analysis_data_*.xlsx
+hopeshot_data_*.json
+
+# Analytics and monitoring files
+analytics_*.json
+usage_stats_*.csv
+performance_*.log
+
+
 # Google Sheets credentials (CRITICAL)
 gsheetapi_credentials.json
 *-*.json
@@ -174,19 +236,29 @@ test_*.py
 debug_*.py
 temp_*.py
 
+
 # =============================================================================
 # PROJECT-SPECIFIC EXCLUSIONS
 # =============================================================================
 
-# Large data files
-*.csv
-*.xlsx
-*.json
-!package.json
-!*.config.json
-
-# Exclude debug/temp files but keep important project files
+# Keep important project files (override above exclusions)
 !backend/test_sentiment.py
+!backend/test_gemini.py
+!backend/test_analysis.py
+!backend/test_full_pipeline.py
+!backend/test_sheets_gemini.py
 !backend/debug_emotions.py
-!test_sentiment.py
-!backend/test_sentiment.py
+
+# Version control and documentation
+!CHANGELOG.md
+!README.md
+!setup.md
+!architecture.md
+!api.md
+!.env.example
+
+# Configuration files to keep
+!requirements.txt
+!package.json
+!tailwind.config.js
+!next.config.js

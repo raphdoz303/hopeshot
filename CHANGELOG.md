@@ -4,6 +4,46 @@
 
 ---
 
+## [0.6.0] - 2025-08-22
+
+### Added
+- **Complete Google Gemini 2.5 Flash-Lite integration** with comprehensive sentiment analysis
+- **Unified data architecture** - single Google Sheets pipeline for all news articles with rich metadata
+- **37-column enhanced schema** capturing emotions, fact-checking, geographic, and content analysis
+- **Advanced batch processing** - up to 100 articles per request with intelligent 2-minute pacing
+- **Comprehensive rate limiting** with exact token tracking and hard stops to prevent API overages
+- **Rich emotion detection** - hope, awe, gratitude, compassion, relief, joy with 0.0-1.0 scoring
+- **Future-proofing metadata** - source credibility, fact-checking readiness, geographic analysis
+- **Massive scale capacity** - 72,000 articles/day processing capability vs 5,000 daily need
+
+### Changed
+- **Simplified architecture** from dual-sheet to single-sheet approach due to abundant API capacity
+- **Enhanced Google Sheets integration** to handle comprehensive 37-column analysis data
+- **Optimized for batch efficiency** with 100-article processing vs previous 3-article batches
+- **Conservative rate limiting** with 20% safety margins to guarantee no quota violations
+
+### Technical
+- **GeminiService architecture** - Complete service for large-batch article analysis with safety nets
+- **Enhanced SheetsService** - Unified schema for rich metadata collection and future model training
+- **Smart pacing system** - 2-minute intervals with exact token usage tracking
+- **Robust error handling** - JSON parsing fallbacks and graceful degradation patterns
+
+### Dependencies
+- Added `google-generativeai>=0.3.0` for Gemini API access
+- Updated environment configuration for Gemini API key management
+
+### Performance
+- **13x capacity headroom** - Can process entire daily news volume with massive safety margin
+- **Efficient token usage** - Optimized prompts for comprehensive analysis within rate limits
+- **Real-time data collection** - All articles generate training data for future custom models
+
+### Notes
+- **Prompt optimization needed** - Current prompts require refinement for consistent analysis quality
+- **Complete training dataset** - Rich emotional analysis on ALL news types for better model development
+- **Ready for scale** - Architecture supports full news volume with room for significant growth
+
+---
+
 ## [0.5.0] - 2025-08-21
 
 ### Added

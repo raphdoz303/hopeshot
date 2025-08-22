@@ -1,191 +1,213 @@
 import os
+import json
+from typing import Dict, List, Any
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from google.auth.transport.requests import Request
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
 load_dotenv()
 
 class SheetsService:
-    """Service for logging article data to Google Sheets"""
-    
     def __init__(self):
-        self.credentials_file = os.getenv('GOOGLE_SHEETS_CREDENTIALS', 'gsheetapi_credentials.json')
-        self.sheet_id = os.getenv('GOOGLE_SHEETS_ID')
-        self.service = None
-        self._connect()
-    
-    def _connect(self):
-        """Initialize Google Sheets API connection"""
-        try:
-            credentials = service_account.Credentials.from_service_account_file(
-                self.credentials_file,
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
-            )
-            self.service = build('sheets', 'v4', credentials=credentials)
-            print("✅ Google Sheets service connected")
-        except Exception as e:
-            print(f"❌ Failed to connect to Google Sheets: {e}")
-            self.service = None
-    
-    
-    def flatten_article_data(self, article: Dict[str, Any]) -> List[Any]:
-        """Convert article with sentiment data into flat row for sheets"""
+        """Initialize Google Sheets service for Gemini analysis data"""
+        self.credentials_file = 'gsheetapi_credentials.json'
+        self.spreadsheet_id = os.getenv('GOOGLE_SHEETS_ID')
         
-        # Basic article fields
-        timestamp = datetime.now().isoformat()
-        title = article.get('title', '')
-        description = article.get('description', '')
-        url = article.get('url', '')
-        author = article.get('author', '')
-        published_at = article.get('publishedAt', '')
-        api_source = article.get('api_source', '')
+        if not os.path.exists(self.credentials_file):
+            raise FileNotFoundError(f"Google Sheets credentials not found: {self.credentials_file}")
         
-        # Source information
-        source_info = article.get('source', {})
-        source_id = source_info.get('id', '') if source_info else ''
-        source_name = source_info.get('name', '') if source_info else ''
+        if not self.spreadsheet_id:
+            raise ValueError("GOOGLE_SHEETS_ID not found in environment variables")
         
-        # Sentiment analysis data (if available)
-        sentiment = article.get('sentiment_analysis', {})
-        uplift_score = article.get('uplift_score', 0.0)
+        # Initialize Google Sheets API
+        self.credentials = Credentials.from_service_account_file(
+            self.credentials_file,
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        self.service = build('sheets', 'v4', credentials=self.credentials)
         
-        if sentiment:
-            # Sentiment scores
-            sentiment_scores = sentiment.get('sentiment', {})
-            positive = sentiment_scores.get('positive', 0.0)
-            negative = sentiment_scores.get('negative', 0.0)
-            neutral = sentiment_scores.get('neutral', 0.0)
-            confidence = sentiment.get('confidence', 0.0)
+        print("📊 Google Sheets service initialized for unified Gemini analysis")
+
+    def _flatten_article_with_gemini_analysis(self, article: Dict, gemini_analysis: Dict = None) -> Dict:
+        """
+        Flatten article + Gemini analysis into 37-column spreadsheet row
+        Unified schema for all news with rich Gemini metadata
+        """
+        # Basic article data (9 columns)
+        flattened = {
+            'timestamp': datetime.now().isoformat(),
+            'title': article.get('title', ''),
+            'description': article.get('description', ''),
+            'url': article.get('url', ''),
+            'author': article.get('author', ''),
+            'published_at': article.get('publishedAt', ''),
+            'api_source': article.get('api_source', ''),
+            'source_id': article.get('source', {}).get('id', ''),
+            'source_name': article.get('source', {}).get('name', ''),
+        }
+        
+        if gemini_analysis:
+            # Gemini sentiment scores (5 columns)
+            flattened.update({
+                'uplift_score': gemini_analysis.get('overall_hopefulness', 0.0),
+                'sentiment_positive': 1.0 if gemini_analysis.get('sentiment') == 'positive' else 0.0,
+                'sentiment_negative': 1.0 if gemini_analysis.get('sentiment') == 'negative' else 0.0,
+                'sentiment_neutral': 1.0 if gemini_analysis.get('sentiment') == 'neutral' else 0.0,
+                'sentiment_confidence': gemini_analysis.get('confidence_score', 0.0),
+            })
             
-            # Raw emotions
-            raw_emotions = sentiment.get('raw_emotions', {})
-            anger = raw_emotions.get('anger', 0.0)
-            disgust = raw_emotions.get('disgust', 0.0)
-            fear = raw_emotions.get('fear', 0.0)
-            joy = raw_emotions.get('joy', 0.0)
-            sadness = raw_emotions.get('sadness', 0.0)
-            surprise = raw_emotions.get('surprise', 0.0)
+            # Gemini emotions (6 columns)
+            emotions = gemini_analysis.get('emotions', {})
+            flattened.update({
+                'emotion_hope': emotions.get('hope', 0.0),
+                'emotion_awe': emotions.get('awe', 0.0),
+                'emotion_gratitude': emotions.get('gratitude', 0.0),
+                'emotion_compassion': emotions.get('compassion', 0.0),
+                'emotion_relief': emotions.get('relief', 0.0),
+                'emotion_joy': emotions.get('joy', 0.0),
+            })
             
-            # Uplift emotions
-            uplift_emotions = sentiment.get('uplift_emotions', {})
-            hope = uplift_emotions.get('hope', 0.0)
-            gratitude = uplift_emotions.get('gratitude', 0.0)
-            awe = uplift_emotions.get('awe', 0.0)
-            relief = uplift_emotions.get('relief', 0.0)
-            compassion = uplift_emotions.get('compassion', 0.0)
+            # Fact-checking metadata (3 columns)
+            flattened.update({
+                'source_credibility': gemini_analysis.get('source_credibility', ''),
+                'fact_checkable_claims': gemini_analysis.get('fact_checkable_claims', ''),
+                'evidence_quality': gemini_analysis.get('evidence_quality', ''),
+            })
+            
+            # Content analysis (4 columns)
+            flattened.update({
+                'controversy_level': gemini_analysis.get('controversy_level', ''),
+                'solution_focused': gemini_analysis.get('solution_focused', ''),
+                'age_appropriate': gemini_analysis.get('age_appropriate', ''),
+                'truth_seeking': gemini_analysis.get('truth_seeking', ''),
+            })
+            
+            # Geographic data (4 columns)
+            geographic_scope = gemini_analysis.get('geographic_scope', [])
+            flattened.update({
+                'geographic_scope': ', '.join(geographic_scope) if isinstance(geographic_scope, list) else str(geographic_scope),
+                'country_focus': gemini_analysis.get('country_focus', ''),
+                'local_focus': gemini_analysis.get('local_focus', ''),
+                'geographic_relevance': gemini_analysis.get('geographic_relevance', ''),
+            })
+            
+            # Enhanced analysis (3 columns)
+            categories = gemini_analysis.get('categories', [])
+            flattened.update({
+                'categories': ', '.join(categories) if isinstance(categories, list) else str(categories),
+                'reasoning': gemini_analysis.get('reasoning', ''),
+                'analyzer_type': 'gemini',
+            })
             
         else:
-            # No sentiment data available
-            positive = negative = neutral = confidence = 0.0
-            anger = disgust = fear = joy = sadness = surprise = 0.0
-            hope = gratitude = awe = relief = compassion = 0.0
+            # Fill with empty values when no Gemini analysis available
+            empty_fields = [
+                'uplift_score', 'sentiment_positive', 'sentiment_negative', 'sentiment_neutral', 'sentiment_confidence',
+                'emotion_hope', 'emotion_awe', 'emotion_gratitude', 'emotion_compassion', 'emotion_relief', 'emotion_joy',
+                'source_credibility', 'fact_checkable_claims', 'evidence_quality',
+                'controversy_level', 'solution_focused', 'age_appropriate', 'truth_seeking',
+                'geographic_scope', 'country_focus', 'local_focus', 'geographic_relevance',
+                'categories', 'reasoning', 'analyzer_type'
+            ]
+            for field in empty_fields:
+                flattened[field] = ''
         
-        # Return flattened row
-        return [
-            timestamp, title, description, url, author, published_at,
-            api_source, source_id, source_name, uplift_score,
-            positive, negative, neutral, confidence,
-            anger, disgust, fear, joy, sadness, surprise,
-            hope, gratitude, awe, relief, compassion
-        ]
-    
-    def get_sheet_headers(self) -> List[str]:
-        """Define the column headers for our data sheet"""
-        return [
-            'timestamp', 'title', 'description', 'url', 'author', 'published_at',
-            'api_source', 'source_id', 'source_name', 'uplift_score',
-            'sentiment_positive', 'sentiment_negative', 'sentiment_neutral', 'sentiment_confidence',
-            'emotion_anger', 'emotion_disgust', 'emotion_fear', 'emotion_joy', 
-            'emotion_sadness', 'emotion_surprise',
-            'uplift_hope', 'uplift_gratitude', 'uplift_awe', 'uplift_relief', 'uplift_compassion'
-        ]
-    
-    def setup_sheet_headers(self, sheet_name: str = 'Sheet1') -> bool:
-        """Add headers to the sheet if they don't exist"""
-        if not self.service:
-            print("❌ No Google Sheets connection")
-            return False
-        
+        return flattened
+
+    async def log_articles_with_gemini_analysis(self, articles_with_analysis: List[Dict]) -> Dict[str, Any]:
+        """
+        Log articles with their Gemini analysis to Google Sheets
+        articles_with_analysis: List of {article: {...}, gemini_analysis: {...}}
+        """
         try:
-            headers = self.get_sheet_headers()
+            if not articles_with_analysis:
+                return {"status": "success", "logged_count": 0, "message": "No articles to log"}
             
-            # Write headers to first row
-            body = {'values': [headers]}
-            
-            result = self.service.spreadsheets().values().update(
-                spreadsheetId=self.sheet_id,
-                range=f'{sheet_name}!A1:Y1',  # A1 to Y1 (25 columns)
-                valueInputOption='RAW',
-                body=body
-            ).execute()
-            
-            print(f"✅ Headers setup complete: {result.get('updatedCells', 0)} cells updated")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Failed to setup headers: {e}")
-            return False
-    
-    def log_articles(self, articles: List[Dict[str, Any]], sheet_name: str = 'Sheet1') -> bool:
-        """Log multiple articles to Google Sheets"""
-        if not self.service:
-            print("❌ No Google Sheets connection")
-            return False
-        
-        if not articles:
-            print("ℹ️ No articles to log")
-            return True
-        
-        try:
-            # Flatten all articles into rows
+            # Flatten all articles into spreadsheet rows
             rows = []
-            for article in articles:
-                flattened_row = self.flatten_article_data(article)
-                rows.append(flattened_row)
+            for item in articles_with_analysis:
+                article = item.get('article', {})
+                analysis = item.get('gemini_analysis', {})
+                flattened = self._flatten_article_with_gemini_analysis(article, analysis)
+                # Convert to list in column order
+                row = list(flattened.values())
+                rows.append(row)
             
-            # Append all rows to sheet
+            # Append to sheet
+            sheet_range = 'Sheet1!A:AK'  # 37 columns (A to AK)
             body = {'values': rows}
             
             result = self.service.spreadsheets().values().append(
-                spreadsheetId=self.sheet_id,
-                range=f'{sheet_name}!A:Y',  # Append to columns A through Y
+                spreadsheetId=self.spreadsheet_id,
+                range=sheet_range,
                 valueInputOption='RAW',
-                insertDataOption='INSERT_ROWS',
                 body=body
             ).execute()
             
-            rows_added = result.get('updates', {}).get('updatedRows', 0)
-            print(f"✅ Logged {rows_added} articles to Google Sheets")
-            return True
+            logged_count = len(rows)
+            print(f"📊 Logged {logged_count} articles with Gemini analysis to Google Sheets")
+            
+            return {
+                "status": "success",
+                "logged_count": logged_count,
+                "total_articles": len(articles_with_analysis),
+                "spreadsheet_id": self.spreadsheet_id
+            }
             
         except Exception as e:
-            print(f"❌ Failed to log articles: {e}")
-            return False
+            print(f"❌ Google Sheets logging failed: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Failed to log to Google Sheets: {str(e)}",
+                "logged_count": 0
+            }
 
-
-if __name__ == "__main__":
-
-    # Test article with sentiment data
-    test_article = {
-        'title': 'Medical Breakthrough Offers Hope',
-        'description': 'Scientists discover new treatment...',
-        'api_source': 'newsapi',
-        'uplift_score': 0.65,
-        'sentiment_analysis': {
-            'sentiment': {'positive': 0.8, 'negative': 0.1, 'neutral': 0.1},
-            'confidence': 0.9,
-            'raw_emotions': {'joy': 0.3, 'anger': 0.1},
-            'uplift_emotions': {'hope': 0.4, 'gratitude': 0.2}
-        }
-    }
-
-    sheets_service = SheetsService()
-
-    # Setup headers
-    sheets_service.setup_sheet_headers()
-
-    # Log test article
-    sheets_service.log_articles([test_article])
+    def create_header_row(self) -> Dict[str, Any]:
+        """Create the header row for the unified Gemini analysis sheet"""
+        headers = [
+            # Basic article data (9)
+            'timestamp', 'title', 'description', 'url', 'author', 'published_at', 
+            'api_source', 'source_id', 'source_name',
+            
+            # Sentiment scores (5)
+            'uplift_score', 'sentiment_positive', 'sentiment_negative', 'sentiment_neutral', 'sentiment_confidence',
+            
+            # Emotions (6)
+            'emotion_hope', 'emotion_awe', 'emotion_gratitude', 'emotion_compassion', 'emotion_relief', 'emotion_joy',
+            
+            # Fact-checking (3)
+            'source_credibility', 'fact_checkable_claims', 'evidence_quality',
+            
+            # Content analysis (4)
+            'controversy_level', 'solution_focused', 'age_appropriate', 'truth_seeking',
+            
+            # Geographic (4)
+            'geographic_scope', 'country_focus', 'local_focus', 'geographic_relevance',
+            
+            # Enhanced analysis (3)
+            'categories', 'reasoning', 'analyzer_type',
+            
+            # Future expansion (3)
+            'reserved1', 'reserved2', 'reserved3'
+        ]
+        
+        try:
+            # Clear existing content and add headers
+            self.service.spreadsheets().values().clear(
+                spreadsheetId=self.spreadsheet_id,
+                range='Sheet1!A:AZ'
+            ).execute()
+            
+            # Add header row
+            self.service.spreadsheets().values().update(
+                spreadsheetId=self.spreadsheet_id,
+                range='Sheet1!A1:AN1',  # 40 columns for future expansion
+                valueInputOption='RAW',
+                body={'values': [headers]}
+            ).execute()
+            
+            return {"status": "success", "message": f"Header row created with {len(headers)} columns"}
+            
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to create headers: {str(e)}"}
