@@ -97,6 +97,25 @@ backend/model_cache/
 transformers_cache/
 
 # =============================================================================
+# A/B TESTING CONFIGURATION (KEEP IN VERSION CONTROL)
+# =============================================================================
+
+# IMPORTANT: prompts.yaml should be tracked for collaborative development
+# This allows team members to share and iterate on prompt variations
+# !backend/prompts.yaml  # Keep this file in version control
+
+# A/B testing data and analysis files
+backend/ab_test_results/
+backend/prompt_performance_*.json
+backend/analysis_comparison_*.csv
+ab_test_data_*.json
+
+# Experimental prompt backups
+prompts_backup_*.yaml
+prompts_archive_*.yaml
+prompt_experiments/
+
+# =============================================================================
 # DEVELOPMENT & DEBUGGING
 # =============================================================================
 
@@ -113,6 +132,11 @@ backend/logs/
 afp_response_sample.json
 gemini_test_output.json
 analysis_debug_*.json
+
+# Multi-prompt analysis debug files
+multi_prompt_debug_*.json
+prompt_comparison_*.json
+ab_test_debug_*.log
 
 # Temporary test files (but keep official test scripts)
 temp_*.py
@@ -214,6 +238,7 @@ anthropic_*.json
 !package.json
 !*.config.json
 !tsconfig.json
+!prompts.yaml
 
 # Google Sheets export files
 sheets_export_*.csv
@@ -225,17 +250,10 @@ analytics_*.json
 usage_stats_*.csv
 performance_*.log
 
-
-# Google Sheets credentials (CRITICAL)
-gsheetapi_credentials.json
-*-*.json
-hopeshot-*.json
-
-# Test files (cleanup)
-test_*.py
-debug_*.py
-temp_*.py
-
+# A/B testing analysis exports
+prompt_performance_analysis_*.xlsx
+comparative_analysis_*.csv
+ab_testing_metrics_*.json
 
 # =============================================================================
 # PROJECT-SPECIFIC EXCLUSIONS
@@ -248,6 +266,10 @@ temp_*.py
 !backend/test_full_pipeline.py
 !backend/test_sheets_gemini.py
 !backend/debug_emotions.py
+
+# Keep A/B testing configuration and documentation
+!backend/prompts.yaml
+!prompts.yaml
 
 # Version control and documentation
 !CHANGELOG.md
@@ -262,3 +284,16 @@ temp_*.py
 !package.json
 !tailwind.config.js
 !next.config.js
+
+# =============================================================================
+# A/B TESTING NOTES
+# =============================================================================
+
+# prompts.yaml is intentionally tracked in version control to enable:
+# - Collaborative prompt development
+# - Version history of prompt iterations  
+# - Shared prompt experiments across team members
+# - Systematic tracking of prompt performance improvements
+#
+# Sensitive data like API responses and analysis results are excluded
+# but prompt configurations themselves are part of the codebase

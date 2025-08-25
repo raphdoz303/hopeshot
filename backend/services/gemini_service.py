@@ -4,6 +4,8 @@ from typing import Dict, List, Any
 from datetime import datetime, timedelta
 import google.generativeai as genai
 from dotenv import load_dotenv
+import yaml
+from pathlib import Path
 
 load_dotenv()
 
@@ -36,6 +38,32 @@ class GeminiService:
         print(f"🚀 Gemini 2.5 Flash-Lite configured: {self.max_articles_per_batch} articles/batch, 2min intervals")
         print(f"🔒 Safety limits: {self.requests_per_minute}/min, {self.requests_per_day}/day")
 
+    def load_prompt_config(self) -> Dict[str, Any]:
+        """Load prompt configurations from yaml file"""
+        try:
+            prompts_file = Path(__file__).parent.parent / 'prompts.yaml'
+            with open(prompts_file, 'r', encoding='utf-8') as file:
+                config = yaml.safe_load(file)
+                
+            # Filter to only active prompts
+            active_prompts = {
+                version: details for version, details in config.items() 
+                if details.get('active', False)
+            }
+            
+            print(f"📝 Loaded {len(active_prompts)} active prompts: {list(active_prompts.keys())}")
+            return active_prompts
+            
+        except Exception as e:
+            print(f"⚠️ Failed to load prompts.yaml: {e}")
+            # Fallback to current hardcoded prompt
+            return {
+                "v1_fallback": {
+                    "name": "Fallback Prompt",
+                    "prompt": "Original hardcoded prompt..."
+                }
+            }
+    
     def _reset_counters_if_needed(self):
         """Reset minute and daily counters when time periods change"""
         now = datetime.now()
@@ -156,85 +184,125 @@ Articles to analyze:
         return prompt
 
     async def analyze_articles_batch(self, articles: List[Dict]) -> Dict[str, Any]:
-        """
-        Analyze articles in optimized 100-article batches with 2-minute pacing
-        """
+        """Analyze articles with ALL active prompts sequentially (Option A approach)
+        Returns results for each prompt version for comparison"""
         try:
             if not articles:
                 return {"status": "error", "message": "No articles provided"}
             
-            total_articles = len(articles)
-            all_results = []
-            total_tokens_used = 0
-            batch_number = 0
+            # Load active prompts from yaml
+            prompt_configs = self.load_prompt_config()
+            if not prompt_configs:
+                return {"status": "error", "message": "No active prompts found"}
             
-            # Process in batches of up to 100 articles
-            for i in range(0, total_articles, self.max_articles_per_batch):
-                batch = articles[i:i + self.max_articles_per_batch]
-                batch_size = len(batch)
-                batch_number += 1
+            total_articles = len(articles)
+            all_prompt_results = {}
+            total_tokens_used = 0
+            total_batches = 0
+            
+            print(f"🔄 Starting multi-prompt analysis: {len(prompt_configs)} prompts × {total_articles} articles")
+            
+            # Analyze with each active prompt sequentially
+            for prompt_version, prompt_config in prompt_configs.items():
+                print(f"\n📋 Analyzing with {prompt_version}: {prompt_config.get('name', 'Unknown')}")
                 
-                # Estimate tokens (conservative: 80 tokens per article + 1000 for prompt)
-                estimated_tokens = batch_size * 80 + 1000
+                prompt_results = []
+                prompt_tokens = 0
+                prompt_batches = 0
                 
-                print(f"📋 Preparing batch {batch_number}: {batch_size} articles")
-                
-                # Check if we can make this request
-                status = self.can_make_request(estimated_tokens)
-                if not status["can_proceed"]:
-                    wait_time = status.get("seconds_until_next_allowed", 0)
-                    if wait_time > 0 and status["blocking_reason"] == "2-minute interval not reached":
-                        print(f"⏰ Waiting {wait_time:.0f} seconds for 2-minute interval...")
-                        await asyncio.sleep(wait_time + 1)  # +1 second buffer
-                        
-                        # Re-check after waiting
-                        status = self.can_make_request(estimated_tokens)
+                # Process articles in batches for this prompt
+                for i in range(0, total_articles, self.max_articles_per_batch):
+                    batch = articles[i:i + self.max_articles_per_batch]
+                    batch_size = len(batch)
+                    prompt_batches += 1
                     
+                    # Estimate tokens
+                    estimated_tokens = batch_size * 80 + 1000
+                    
+                    print(f"  📦 Batch {prompt_batches}: {batch_size} articles")
+                    
+                    # Check rate limits
+                    status = self.can_make_request(estimated_tokens)
                     if not status["can_proceed"]:
-                        return {
-                            "status": "partial_success",
-                            "message": f"Rate limit reached after {len(all_results)} articles",
-                            "blocking_reason": status["blocking_reason"],
-                            "processed_articles": len(all_results),
-                            "total_articles": total_articles,
-                            "total_tokens_used": total_tokens_used,
-                            "results": all_results
-                        }
+                        wait_time = status.get("seconds_until_next_allowed", 0)
+                        if wait_time > 0:
+                            print(f"  ⏰ Waiting {wait_time:.0f} seconds for rate limits...")
+                            await asyncio.sleep(wait_time + 1)
+                            
+                            status = self.can_make_request(estimated_tokens)
+                        
+                        if not status["can_proceed"]:
+                            print(f"  ❌ Rate limit reached for {prompt_version}")
+                            break
+                    
+                    # Create prompt using yaml template
+                    prompt = self._create_prompt_from_config(batch, prompt_config)
+                    
+                    # Make request
+                    response = self.model.generate_content(prompt)
+                    
+                    # Record usage
+                    actual_tokens = response.usage_metadata.total_token_count
+                    self.record_request(actual_tokens)
+                    prompt_tokens += actual_tokens
+                    
+                    # Parse results
+                    batch_results = self._parse_gemini_response(response.text, batch)
+                    prompt_results.extend(batch_results)
+                    
+                    print(f"  ✅ Batch completed: {actual_tokens} tokens")
                 
-                print(f"🚀 Sending batch {batch_number} to Gemini ({batch_size} articles, ~{estimated_tokens} tokens)")
+                # Store results for this prompt
+                all_prompt_results[prompt_version] = {
+                    "results": prompt_results,
+                    "config": prompt_config,
+                    "tokens_used": prompt_tokens,
+                    "batches_processed": prompt_batches,
+                    "articles_analyzed": len(prompt_results)
+                }
                 
-                # Make the request
-                prompt = self._create_analysis_prompt(batch)
-                response = self.model.generate_content(prompt)
+                total_tokens_used += prompt_tokens
+                total_batches += prompt_batches
                 
-                # Record exact usage
-                actual_tokens = response.usage_metadata.total_token_count
-                self.record_request(actual_tokens)
-                total_tokens_used += actual_tokens
-                
-                # Parse results
-                batch_results = self._parse_gemini_response(response.text, batch)
-                all_results.extend(batch_results)
-                
-                tokens_per_article = actual_tokens / batch_size
-                print(f"✅ Batch {batch_number} completed: {batch_size} articles, {actual_tokens} tokens ({tokens_per_article:.0f}/article)")
+                print(f"✅ {prompt_version} completed: {len(prompt_results)} articles, {prompt_tokens} tokens")
             
             return {
                 "status": "success",
-                "processed_articles": len(all_results),
                 "total_articles": total_articles,
+                "prompt_versions": list(prompt_configs.keys()),
                 "total_tokens_used": total_tokens_used,
-                "average_tokens_per_article": total_tokens_used / len(all_results) if all_results else 0,
-                "batches_processed": batch_number,
-                "results": all_results
+                "total_batches_processed": total_batches,
+                "results_by_prompt": all_prompt_results
             }
             
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Analysis failed: {str(e)}"
+                "message": f"Multi-prompt analysis failed: {str(e)}"
             }
 
+    def _create_prompt_from_config(self, articles: List[Dict], prompt_config: Dict) -> str:
+        """Create prompt using yaml configuration template"""
+        article_count = len(articles)
+        
+        # Get the prompt template from config
+        prompt_template = prompt_config.get('prompt', '')
+        
+        # Replace template variables
+        prompt = prompt_template.format(article_count=article_count)
+        
+        # Add articles data
+        prompt += "\n\nArticles to analyze:\n"
+        
+        for i, article in enumerate(articles):
+            title = article.get('title', '')[:200]  # Truncate long titles
+            description = article.get('description', '')[:300]  # Truncate long descriptions
+            prompt += f"\nArticle {i}:\nTitle: {title}\nDescription: {description}\n"
+            
+        prompt += f"\nReturn JSON array with exactly {article_count} analysis objects. Keep responses concise."
+        
+        return prompt
+    
     def _parse_gemini_response(self, response_text: str, original_articles: List[Dict]) -> List[Dict]:
         """Parse Gemini's JSON response with robust error handling"""
         import json

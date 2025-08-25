@@ -9,6 +9,8 @@ import os
 from typing import Optional
 from services.sentiment.sentiment_service import SentimentService
 from services.sheets_service import SheetsService
+from services.gemini_service import GeminiService
+
 
 # Initialize sheets service globally
 sheets_service = SheetsService()
@@ -68,63 +70,97 @@ async def test_endpoint():
 
 @app.get("/api/news")
 async def get_news(
-    q: str = None,
-    language: str = "en",
+    q: Optional[str] = None,
+    language: str = "en", 
     pageSize: int = 20
 ):
-    """Get unified news from all available sources with sentiment analysis and Google Sheets logging"""
-    
     try:
-        # Get news from all sources
+        # Get articles from existing news service
+        news_service = NewsService()
         result = await news_service.fetch_unified_news(
-            query=q,
+            query=q or "",
             language=language,
-            page_size=pageSize
+            page_size=min(pageSize, 100)
         )
         
-        # Analyze sentiment for applicable articles
-        analyzed_articles = []
-        sentiment_analyzed = False
-        analyzed_sources = []
-        
-        for article in result["articles"]:
-            api_source = article.get("api_source", "")
+        if result["status"] != "success":
+            return result
             
-            # Only analyze NewsAPI and NewsData articles
-            if api_source in ["newsapi", "newsdata"]:
+        # Multi-prompt Gemini analysis
+        if result.get("articles"):
+            gemini_service = GeminiService()
+            
+            # Analyze with all active prompts
+            gemini_result = await gemini_service.analyze_articles_batch(result["articles"])
+        
+            
+            if gemini_result["status"] == "success":
+            
+                # Prepare articles for sheets logging (multiple rows per article - one per prompt)
+                articles_for_sheets = []
+                
+                # Create sheets entries for each prompt version
+                for prompt_version, prompt_data in gemini_result["results_by_prompt"].items():
+                    analyses = prompt_data["results"]
+                    
+                    for i, article in enumerate(result["articles"]):
+                        if i < len(analyses):
+                            # Create separate sheet entry for this prompt version
+                            articles_for_sheets.append({
+                                "article": article.copy(),  # Don't modify original
+                                "gemini_analysis": {
+                                    **analyses[i],  # Include all analysis fields
+                                    "prompt_version": prompt_version,  # Add version tracking
+                                    "prompt_name": prompt_data["config"].get("name", prompt_version)
+                                }
+                            })
+                
+                # Add multi-prompt metadata to API response
+                result["gemini_analyzed"] = True
+                result["prompt_versions"] = gemini_result["prompt_versions"]
+                result["gemini_stats"] = {
+                    "total_tokens_used": gemini_result.get("total_tokens_used", 0),
+                    "total_batches_processed": gemini_result.get("total_batches_processed", 0),
+                    "prompt_versions_count": len(gemini_result.get("prompt_versions", [])),
+                    "total_analyses": len(articles_for_sheets)
+                }
+                
+                # For API response: show first prompt's analysis (backward compatibility)
+                first_prompt = list(gemini_result["results_by_prompt"].keys())[0]
+                first_analyses = gemini_result["results_by_prompt"][first_prompt]["results"]
+                
+                for i, article in enumerate(result["articles"]):
+                    if i < len(first_analyses):
+                        article["gemini_analysis"] = first_analyses[i]
+                
+                # Log to Google Sheets (multiple rows per article)
                 try:
-                    sentiment_result = sentiment_service.analyze_article_sentiment(article)
-                    article.update(sentiment_result)
-                    sentiment_analyzed = True
-                    if api_source not in analyzed_sources:
-                        analyzed_sources.append(api_source)
-                except Exception as e:
-                    print(f"Sentiment analysis failed for {api_source} article: {e}")
+                    sheets_service = SheetsService()
+                    sheets_result = await sheets_service.log_articles_with_gemini_analysis(articles_for_sheets)
+                    result["sheets_logged"] = sheets_result.get("status") == "success"
+                    result["total_logged"] = sheets_result.get("logged_count", 0)
+                    
+                except Exception as sheets_error:
+                    print(f"⚠️ Sheets logging failed: {sheets_error}")
+                    result["sheets_logged"] = False
+                    result["sheets_error"] = str(sheets_error)
+                    
+            else:
+                result["gemini_analyzed"] = False
+                result["gemini_error"] = gemini_result.get("message", "Analysis failed")
             
-            analyzed_articles.append(article)
-        
-        # Log articles to Google Sheets
-        try:
-            sheets_service.log_articles(analyzed_articles)
-            sheets_logged = True
-        except Exception as e:
-            print(f"Failed to log to Google Sheets: {e}")
-            sheets_logged = False
-        
-        # Build response with enhanced metadata
-        response = {
-            **result,  # Include all original fields
-            "articles": analyzed_articles,
-            "sentiment_analyzed": sentiment_analyzed,
-            "analyzed_sources": analyzed_sources,
-            "sheets_logged": sheets_logged,
-            "total_logged": len(analyzed_articles)
-        }
-        
-        return response
+            result["analyzed_sources"] = list(set([article.get("api_source") for article in result["articles"]]))
+        else:
+            result["gemini_analyzed"] = False
+            result["analyzed_sources"] = []
+            
+        return result
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
+        return {
+            "status": "error", 
+            "message": f"News aggregation failed: {str(e)}"
+        }
 
 
 @app.get("/api/sources")

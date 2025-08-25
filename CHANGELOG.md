@@ -4,6 +4,48 @@
 
 ---
 
+## [0.7.0] - 2025-08-25
+
+### Added
+- **Multi-Prompt A/B Testing Framework** with YAML-based configuration for systematic prompt optimization
+- **Sequential Analysis Pipeline** - Each article analyzed by all active prompts for direct comparison
+- **Enhanced Prompt Management** via `prompts.yaml` for easy experimentation without code changes
+- **Comparative Data Collection** - Google Sheets logging with prompt version tracking for side-by-side analysis
+- **Template-Based Prompt Generation** with dynamic article count and content insertion
+- **Configuration-Driven Behavior** enabling rapid prompt iteration and performance evaluation
+
+### Changed
+- **Enhanced `/api/news` endpoint** - Now performs multi-prompt analysis with all active prompt versions
+- **Unified Google Sheets pipeline** - Utilizes reserved columns for prompt version and name tracking
+- **GeminiService architecture** - Supports dynamic prompt loading and sequential batch processing
+- **API response structure** - Maintains backward compatibility while adding multi-prompt metadata
+
+### Technical
+- **YAML Configuration System** - Complete prompt management with active/inactive states and descriptions
+- **Multi-Prompt Data Flow** - Articles → All Active Prompts → Comparative Analysis → Sheets Storage
+- **Enhanced Rate Limiting** - Sequential processing maintains conservative API usage patterns
+- **Prompt Version Tracking** - Full audit trail of which prompt generated each analysis
+
+### Dependencies
+- Added `pyyaml>=6.0.0` for YAML configuration file management
+
+### Performance
+- **2-3x analysis time increase** due to multi-prompt processing (expected trade-off for A/B testing)
+- **Comparative data richness** - Multiple analyses per article enable systematic prompt optimization
+- **Maintained rate limiting safety** - Conservative API usage despite increased analysis volume
+
+### A/B Testing Capabilities
+- **Easy prompt experimentation** - Edit YAML file to test new prompt variations
+- **Direct comparison data** - Same articles analyzed by different prompts for quality assessment
+- **Systematic optimization framework** - Foundation for identifying best-performing prompts for production
+
+### Notes
+- **Ready for prompt optimization** - System enables rapid iteration and performance comparison
+- **DistilBERT preparation** - Comparative analysis will identify optimal prompt for training data collection
+- **Production-ready architecture** - Multi-prompt framework scales to large-scale data collection needs
+
+---
+
 ## [0.6.0] - 2025-08-22
 
 ### Added

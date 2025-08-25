@@ -1,6 +1,6 @@
 # HopeShot Setup Guide
 
-Complete guide to get HopeShot running on your machine with Google Gemini AI integration.
+Complete guide to get HopeShot running on your machine with Google Gemini AI integration and multi-prompt A/B testing framework.
 
 ---
 
@@ -32,6 +32,9 @@ py -m pip install -r requirements.txt
 # Test Gemini integration
 py -c "import google.generativeai as genai; print('✅ Gemini library ready')"
 
+# Test YAML configuration
+py -c "import yaml; print('✅ YAML library ready')"
+
 # Start development server
 py -m uvicorn main:app --reload --port 8000
 ```
@@ -43,9 +46,10 @@ Backend will be available at `http://localhost:8000`
 - `uvicorn>=0.15.0` - ASGI server
 - `python-dotenv>=0.19.0` - Environment variable management
 - `aiohttp>=3.8.0` - Async HTTP client for concurrent API calls
-- `google-generativeai>=0.3.0` - **NEW**: Google Gemini API client
+- `google-generativeai>=0.3.0` - Google Gemini API client
 - `google-api-python-client>=2.0.0` - Google Sheets API access
 - `google-auth>=2.0.0` - Google authentication libraries
+- `pyyaml>=6.0.0` - **NEW**: YAML configuration file parsing for A/B testing
 - `transformers>=4.21.0` - Hugging Face models (backup/legacy)
 - `torch>=1.13.0` - PyTorch neural network backend (backup)
 - `nltk>=3.8.0` - VADER sentiment analyzer (backup)
@@ -136,53 +140,175 @@ Frontend will be available at `http://localhost:3000`
 
 ---
 
+## A/B Testing Configuration
+
+### Create prompts.yaml File
+Create `backend/prompts.yaml` with your prompt configurations:
+
+```yaml
+# prompts.yaml - A/B Testing Configuration
+v1_comprehensive:
+  name: "Current Comprehensive Analysis"
+  active: true
+  description: "Detailed analysis with all fields - baseline version"
+  prompt: |
+    Analyze these {article_count} news articles for comprehensive emotional and contextual analysis. Return a JSON array with exactly {article_count} objects, one per article.
+
+    REQUIRED FORMAT for each article:
+    {{
+      "article_index": 0,
+      "sentiment": "positive/negative/neutral",
+      "confidence_score": 0.85,
+      "emotions": {{
+        "hope": 0.8,
+        "awe": 0.6,
+        "gratitude": 0.4,
+        "compassion": 0.7,
+        "relief": 0.3,
+        "joy": 0.5
+      }},
+      "categories": ["medical", "technology"],
+      "source_credibility": "high",
+      "fact_checkable_claims": "yes",
+      "evidence_quality": "strong",
+      "controversy_level": "low",
+      "solution_focused": "yes",
+      "age_appropriate": "all",
+      "truth_seeking": "no",
+      "geographic_scope": ["World"],
+      "country_focus": "None",
+      "local_focus": "None",
+      "geographic_relevance": "primary",
+      "overall_hopefulness": 0.75,
+      "reasoning": "Brief 5-word summary"
+    }}
+
+    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
+    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
+    REASONING: Maximum 5 words to minimize tokens
+
+v2_emotion_focused:
+  name: "Emotion-Focused Analysis" 
+  active: true
+  description: "Shorter prompt focused primarily on emotional scoring"
+  prompt: |
+    Analyze these {article_count} news articles focusing on emotional impact. Return JSON array with {article_count} objects.
+
+    Focus on these emotions (0.0-1.0): hope, awe, gratitude, compassion, relief, joy
+    
+    Required format per article:
+    {{
+      "article_index": 0,
+      "sentiment": "positive/negative/neutral",
+      "confidence_score": 0.85,
+      "emotions": {{
+        "hope": 0.8,
+        "awe": 0.6,
+        "gratitude": 0.4,
+        "compassion": 0.7,
+        "relief": 0.3,
+        "joy": 0.5
+      }},
+      "overall_hopefulness": 0.75,
+      "reasoning": "Brief summary"
+    }}
+
+v3_experimental:
+  name: "Experimental Prompt"
+  active: false
+  description: "Test prompt for experimentation"  
+  prompt: |
+    [Your experimental prompt here - modify as needed for testing]
+```
+
+---
+
 ## Verification
 
 ### Test Backend Endpoints
 Visit these URLs in your browser:
-- `http://localhost:8000/` - Root endpoint (should show v0.6.0)
-- `http://localhost:8000/health` - System health check with Gemini status
-- `http://localhost:8000/api/sources` - Source configuration with Gemini integration
-- `http://localhost:8000/api/sources/test` - Source connectivity including Gemini
+- `http://localhost:8000/` - Root endpoint (should show v0.7.0)
+- `http://localhost:8000/health` - System health check with A/B testing status
+- `http://localhost:8000/api/sources` - Source configuration with multi-prompt information
+- `http://localhost:8000/api/sources/test` - Source connectivity including Gemini A/B testing
 
-### Test Gemini Integration
+### Test A/B Testing Framework
 ```bash
-# Test Gemini API connection
+# Test YAML configuration loading
 cd backend
+py -c "
+from services.gemini_service import GeminiService
+service = GeminiService()
+prompts = service.load_prompt_config()
+print('Active prompts:', list(prompts.keys()))
+for version, config in prompts.items():
+    print(f'- {version}: {config.get(\"name\", \"Unknown\")}')
+"
+
+# Test Gemini API connection
 py test_gemini.py
 
-# Test Gemini analysis functionality  
+# Test multi-prompt analysis functionality  
 py test_analysis.py
 
-# Test complete pipeline
+# Test complete pipeline with A/B testing
 py test_full_pipeline.py
 
-# Test Google Sheets integration
+# Test Google Sheets integration with comparative data
 py test_sheets_gemini.py
 ```
 
 ### Test Frontend
 - `http://localhost:3000/` - Homepage
-- `http://localhost:3000/test` - API testing interface with Gemini analysis
+- `http://localhost:3000/test` - API testing interface with multi-prompt analysis results
 
-### Test Complete System
+### Test Complete Multi-Prompt System
 ```bash
-# Test all integrations
+# Test all integrations including A/B testing
 curl http://localhost:8000/api/sources/test
 
-# Test unified news with Gemini analysis (will take 30-60 seconds)
-curl "http://localhost:8000/api/news?pageSize=5" 
+# Test unified news with multi-prompt analysis (will take 60-120 seconds for 2 prompts)
+curl "http://localhost:8000/api/news?pageSize=3" 
 
-# Test Gemini usage stats
-curl http://localhost:8000/api/gemini/usage
+# Check Google Sheets for comparative data (should see 6 rows: 3 articles × 2 prompts)
 ```
 
 **Expected Results**:
 - All news sources should show success
-- Gemini should show "connected successfully"
+- Gemini should show "Multi-prompt A/B testing framework ready"
 - Articles should include comprehensive `gemini_analysis` field
-- Google Sheets should receive new rows with 37 columns of data
-- Response should show `gemini_analyzed: true` and `sheets_logged: true`
+- Google Sheets should receive multiple rows per article with prompt version tracking
+- Response should show `prompt_versions: ["v1_comprehensive", "v2_emotion_focused"]`
+- `sheets_logged: true` and `total_logged` should equal articles × active prompts
+
+---
+
+## A/B Testing Usage
+
+### Basic Usage
+1. **Edit prompts.yaml** - Modify prompt text, add new versions, or activate/deactivate prompts
+2. **Run API calls** - Each article will be analyzed by all active prompts
+3. **Review Google Sheets** - See side-by-side comparison of different prompt analyses for identical articles
+4. **Iterate and improve** - Refine prompts based on quality comparison
+
+### Systematic Optimization Workflow
+1. **Establish baseline** - Start with one proven prompt as baseline
+2. **Create variations** - Add experimental prompts with `active: true`
+3. **Collect comparative data** - Run `/api/news` with diverse articles
+4. **Evaluate quality** - Review Google Sheets for analysis quality comparison
+5. **Select best prompts** - Identify highest-performing prompts for production use
+
+### Configuration Management
+```bash
+# Activate a new prompt for testing
+# Edit prompts.yaml: change "active: false" to "active: true"
+
+# Test specific prompt combinations
+# Deactivate prompts you don't want to test by setting "active: false"
+
+# Add new experimental prompts
+# Copy existing prompt structure and modify content
+```
 
 ---
 
@@ -190,7 +316,7 @@ curl http://localhost:8000/api/gemini/usage
 
 ### Starting Development Session
 ```bash
-# Terminal 1: Backend  
+# Terminal 1: Backend with A/B testing 
 cd backend
 py -m uvicorn main:app --reload --port 8000
 
@@ -199,13 +325,19 @@ cd frontend
 npm run dev
 ```
 
-### Making Changes
+### Making Changes to Prompts
+1. Edit `backend/prompts.yaml` file
+2. No server restart required - configuration loads dynamically
+3. Test changes with new API calls
+4. Check Google Sheets for comparative analysis results
+5. Monitor token usage and processing time
+
+### Making Code Changes
 1. Edit code files
 2. Servers automatically restart (hot reload enabled)
 3. Test changes in browser
-4. Check Google Sheets for data logging
-5. Monitor Gemini usage with test commands
-6. Commit when feature is complete
+4. Verify A/B testing functionality with test commands
+5. Commit when feature is complete
 
 ---
 
@@ -213,81 +345,86 @@ npm run dev
 
 ### Common Issues
 
-**Gemini API Issues**:
-- Verify API key is correct in `.env`
-- Check quota usage: `py test_gemini.py`
-- Ensure Google Cloud project has Gemini enabled
-- Rate limit errors: Wait 2 minutes between large requests
+**YAML Configuration Issues**:
+- Verify `prompts.yaml` is in the `backend/` directory
+- Check YAML syntax with online validator if getting parsing errors
+- Ensure proper indentation (spaces, not tabs)
+- Verify `active: true` for prompts you want to test
 
-**Google Sheets Issues**:
-- Verify service account JSON file is in `backend/` directory
-- Check that service account email has edit access to your sheet
-- Ensure `GOOGLE_SHEETS_ID` matches your spreadsheet URL
+**Multi-Prompt Processing Slow**:
+- Expected behavior: 2-3x slower than single prompt
+- Each active prompt processes all articles sequentially
+- 2-minute intervals between batches for rate limiting
+- Disable unused prompts to improve performance
 
-**Python/pip not found**:
-- Use `py` instead of `python`
-- Use `py -m pip` instead of `pip`
+**Google Sheets Missing Comparative Data**:
+- Check that multiple rows appear per article (one per active prompt)
+- Verify `reserved1` and `reserved2` columns show prompt versions and names
+- Ensure service account has edit permissions
+- Check for sheets logging errors in API response
 
-**Package installation errors**:
-- Update `requirements.txt` to use `>=` instead of `==` for version flexibility
-- Some packages require specific Python versions
+**Prompt Not Loading**:
+- Verify prompt is set to `active: true` in YAML
+- Check terminal output for YAML loading messages
+- Test prompt loading with: `py -c "from services.gemini_service import GeminiService; print(GeminiService().load_prompt_config())"`
 
-**CORS errors in browser**:
-- Ensure backend CORS middleware allows `http://localhost:3000`
-- Check that both servers are running
+**Rate Limiting Issues**:
+- Multi-prompt analysis uses 2x+ API calls
+- Wait times are normal and protect against quota violations
+- Monitor usage with test scripts
+- Consider reducing number of active prompts for faster testing
 
-**Port conflicts**:
-- Backend: Change `--port 8000` to another port
-- Frontend: Next.js will auto-suggest alternative ports
+### A/B Testing Verification
 
-**Slow first request**:
-- Gemini analysis takes 30-60 seconds for batch processing
-- This is normal for 100-article batches
-- Legacy transformers models may download on first run (~500MB)
-
-### Performance Monitoring
-
-**Gemini Usage Tracking**:
+**Check Prompt Loading**:
 ```bash
-# Check current usage
 py -c "
 from services.gemini_service import GeminiService
-import asyncio
-async def check():
-    service = GeminiService()
-    print(service.get_usage_stats())
-asyncio.run(check())
+service = GeminiService()
+prompts = service.load_prompt_config()
+print('✅ Loaded prompts:', list(prompts.keys()))
 "
 ```
 
-**Google Sheets Verification**:
-- Check your spreadsheet for new rows after running tests
-- Verify all 37 columns are populated with analysis data
-- Look for `analyzer_type: gemini` in the data
+**Verify Comparative Data in Sheets**:
+- Look for multiple rows per article
+- Check `reserved1` column for prompt versions (e.g., "v1_comprehensive")
+- Check `reserved2` column for prompt names (e.g., "Current Comprehensive Analysis")
+- Same article should have different analysis results from different prompts
 
-### Testing Comprehensive Analysis
+**Monitor Multi-Prompt Processing**:
 ```bash
-# Test with diverse article types
-py test_full_pipeline.py
-
-# Expected: Different sentiment scores for positive vs negative articles
-# Expected: Rich emotion analysis (hope, awe, gratitude, etc.)
-# Expected: Geographic analysis and category detection
-# Expected: Fact-checking readiness assessment
+# Watch terminal output during API calls for:
+# - "📝 Loaded X active prompts: [list]"
+# - "🔄 Starting multi-prompt analysis: X prompts × Y articles"
+# - "📋 Analyzing with [prompt_version]: [prompt_name]"
+# - "✅ [prompt_version] completed: X articles, Y tokens"
 ```
 
-### Memory and Performance
-- **Gemini requests**: 30-60 seconds for 100 articles (normal)
-- **Memory usage**: ~1-2GB for full system (Gemini + legacy models)
-- **Token tracking**: Exact usage displayed in test outputs
-- **Rate limiting**: Conservative 2-minute intervals prevent quota issues
+### Performance Optimization
+
+**Prompt Efficiency**:
+- Shorter prompts use fewer tokens and process faster
+- Remove unnecessary fields from prompts you're testing
+- Focus on specific aspects you want to optimize
+
+**Active Prompt Management**:
+- Only keep prompts active that you're actively comparing
+- Disable experimental prompts when not testing: `active: false`
+- Use 2-3 active prompts maximum for regular development
+
+**Batch Size Optimization**:
+- Smaller `pageSize` values process faster for testing
+- Use `pageSize=1` for rapid prompt iteration
+- Use larger batches for comprehensive data collection
 
 ### Getting Help
 - Check browser developer console for frontend errors
-- Check terminal output for backend errors  
+- Check terminal output for backend errors and A/B testing logs
 - Use the test page at `/test` to isolate API issues
-- Monitor Google Sheets for data pipeline verification
+- Monitor Google Sheets for comparative data verification
 - Check Gemini usage stats if experiencing rate limits
+- Verify YAML syntax if prompts aren't loading
 
 ---
 
@@ -296,24 +433,31 @@ py test_full_pipeline.py
 ### Environment Variables
 Ensure all required environment variables are set:
 - `GEMINI_API_KEY` - Google Gemini API access
-- `GOOGLE_SHEETS_ID` - Target spreadsheet ID
+- `GOOGLE_SHEETS_ID` - Target spreadsheet ID  
 - `NEWS_API_KEY` - NewsAPI.org access
 - `NEWSDATA_API_KEY` - NewsData.io access
 - `AFP_CLIENT_ID`, `AFP_CLIENT_SECRET`, `AFP_USERNAME`, `AFP_PASSWORD` - AFP access
 
 ### Security
 - Keep `gsheetapi_credentials.json` secure and never commit to version control
+- Keep `prompts.yaml` in version control for collaborative prompt development
 - Rotate API keys periodically
-- Monitor usage to prevent quota violations
-- Use environment-specific configuration files
+- Monitor usage to prevent quota violations with multi-prompt processing
 
-### Scaling
-- Current capacity: 72,000 articles/day
-- Typical usage: ~5,000 articles/day
-- 13x headroom for growth
-- Google Sheets suitable for prototype; consider database for production
+### Scaling for Production
+- **Current capacity**: ~24,000 articles/day with 2 active prompts
+- **A/B testing overhead**: 2-3x processing time for comparative analysis
+- **Production strategy**: Use A/B testing to identify best prompt, then single-prompt for scale
+- **Data collection**: Multi-prompt comparative data enables systematic optimization
+
+### A/B Testing Best Practices
+- **Start with baseline**: Keep one proven prompt as control group
+- **Systematic changes**: Modify one aspect at a time for clear comparison
+- **Sufficient data**: Test prompts on diverse article types and topics
+- **Quality criteria**: Develop consistent evaluation standards
+- **Documentation**: Track prompt changes and performance insights
 
 ---
 
-*Last updated: August 22, 2025*  
-*Ready to build comprehensive AI-powered news analysis!*
+*Last updated: August 25, 2025*  
+*Ready for multi-prompt A/B testing and systematic prompt optimization!*

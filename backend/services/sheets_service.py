@@ -100,6 +100,13 @@ class SheetsService:
                 'analyzer_type': 'gemini',
             })
             
+            # Future expansion (3 columns) - USE FIRST RESERVED COLUMN
+            flattened.update({
+                'reserved1': gemini_analysis.get('prompt_version', ''),  # Now tracks prompt version
+                'reserved2': gemini_analysis.get('prompt_name', ''),     # And prompt name for readability
+                'reserved3': ''
+            })
+            
         else:
             # Fill with empty values when no Gemini analysis available
             empty_fields = [

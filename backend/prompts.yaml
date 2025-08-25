@@ -1,0 +1,120 @@
+# prompts.yaml - A/B Testing Configuration
+v1_comprehensive:
+  name: "Current Comprehensive Analysis"
+  active: true
+  description: "Detailed analysis with all fields - baseline version"
+  prompt: |
+    Analyze these {article_count} news articles for comprehensive emotional and contextual analysis. Return a JSON array with exactly {article_count} objects, one per article.
+
+    REQUIRED FORMAT for each article:
+    {{
+      "article_index": 0,
+      "sentiment": "positive/negative/neutral",
+      "confidence_score": 0.85,
+      "emotions": {{
+        "hope": 0.8,
+        "awe": 0.6,
+        "gratitude": 0.4,
+        "compassion": 0.7,
+        "relief": 0.3,
+        "joy": 0.5
+      }},
+      "categories": ["medical", "technology"],
+      "source_credibility": "high",
+      "fact_checkable_claims": "yes",
+      "evidence_quality": "strong",
+      "controversy_level": "low",
+      "solution_focused": "yes",
+      "age_appropriate": "all",
+      "truth_seeking": "no",
+      "geographic_scope": ["World"],
+      "country_focus": "None",
+      "local_focus": "None",
+      "geographic_relevance": "primary",
+      "overall_hopefulness": 0.75,
+      "reasoning": "Brief 5-word summary"
+    }}
+
+    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
+    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
+    REASONING: Maximum 5 words to minimize tokens
+
+v2_emotion_focused:
+  name: "Emotion-Focused Analysis" 
+  active: true
+  description: "Shorter prompt focused primarily on emotional scoring"
+  prompt: |
+    Analyze these {article_count} news articles for comprehensive emotional and contextual analysis. Return a JSON array with exactly {article_count} objects, one per article.
+
+    REQUIRED FORMAT for each article:
+    {{
+      "article_index": 0,
+      "sentiment": "positive/negative/neutral",
+      "confidence_score": 0.85,
+      "emotions": {{
+        "hope": 0.8,
+        "awe": 0.6,
+        "gratitude": 0.4,
+        "compassion": 0.7,
+        "relief": 0.3,
+        "joy": 0.5
+      }},
+      "categories": ["medical", "technology"],
+      "source_credibility": "high",
+      "fact_checkable_claims": "yes",
+      "evidence_quality": "strong",
+      "controversy_level": "low",
+      "solution_focused": "yes",
+      "age_appropriate": "all",
+      "truth_seeking": "no",
+      "geographic_scope": ["World"],
+      "country_focus": "None",
+      "local_focus": "None",
+      "geographic_relevance": "primary",
+      "overall_hopefulness": 0.75,
+      "reasoning": "Brief 5-word summary"
+    }}
+
+    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
+    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
+    REASONING: Maximum 5 words to minimize tokens
+
+v3_test_prompt:
+  name: "Test Prompt - Inactive"
+  active: false
+  description: "Experimental prompt for testing new approaches"  
+  prompt: |
+    Analyze these {article_count} news articles for comprehensive emotional and contextual analysis. Return a JSON array with exactly {article_count} objects, one per article.
+
+    REQUIRED FORMAT for each article:
+    {{
+      "article_index": 0,
+      "sentiment": "positive/negative/neutral",
+      "confidence_score": 0.85,
+      "emotions": {{
+        "hope": 0.8,
+        "awe": 0.6,
+        "gratitude": 0.4,
+        "compassion": 0.7,
+        "relief": 0.3,
+        "joy": 0.5
+      }},
+      "categories": ["medical", "technology"],
+      "source_credibility": "high",
+      "fact_checkable_claims": "yes",
+      "evidence_quality": "strong",
+      "controversy_level": "low",
+      "solution_focused": "yes",
+      "age_appropriate": "all",
+      "truth_seeking": "no",
+      "geographic_scope": ["World"],
+      "country_focus": "None",
+      "local_focus": "None",
+      "geographic_relevance": "primary",
+      "overall_hopefulness": 0.75,
+      "reasoning": "Brief 5-word summary"
+    }}
+
+    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
+    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
+    REASONING: Maximum 5 words to minimize tokens

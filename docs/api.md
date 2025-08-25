@@ -30,7 +30,7 @@ Root endpoint providing basic API information.
 ---
 
 ### **GET /api/news**
-Fetch positive news from all available sources with AI sentiment analysis and automatic Google Sheets logging.
+Fetch positive news from all available sources with multi-prompt Gemini analysis and automatic comparative Google Sheets logging.
 
 **Query Parameters**:
 - `q` (optional): Search keywords (default: positive keywords per source)
@@ -39,25 +39,37 @@ Fetch positive news from all available sources with AI sentiment analysis and au
 
 **Example Request**:
 ```bash
-curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=10"
+curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
 ```
 
-**Enhanced Response**:
+**A/B Testing Response Fields**:
+- `prompt_versions`: Array of active prompt versions used for analysis
+- `gemini_stats.prompt_versions_count`: Number of prompts that analyzed each article
+- `gemini_stats.total_analyses`: Total analysis operations (articles × prompt versions)
+- `sheets_logged`: Boolean indicating successful logging of comparative analysis data
+- `total_logged`: Number of rows logged to Google Sheets (articles × prompt versions)
+
+**Google Sheets Data Collection**:
+- Each article generates multiple rows in Google Sheets (one per prompt version)
+- Prompt version tracking in reserved columns for A/B testing comparison
+- Side-by-side analysis results for identical articles enable systematic prompt optimization
+
+**Response Structure**:
 ```json
 {
   "status": "success",
   "query": "medical breakthrough",
   "totalSources": 3,
-  "sourcesUsed": ["newsapi", "newsdata"],
-  "sourcesFailed": [
-    {"source": "afp", "error": "Content subscription required"}
-  ],
-  "totalArticles": 8,
-  "crossSourceDuplicatesRemoved": 2,
-  "sentiment_analyzed": true,
-  "analyzed_sources": ["newsapi", "newsdata"],
-  "sheets_logged": true,
-  "total_logged": 8,
+  "sourcesUsed": ["newsapi", "newsdata", "afp"],
+  "sourcesFailed": [],
+  "totalArticles": 5,
+  "crossSourceDuplicatesRemoved": 1,
+  "gemini_stats": {
+    "total_tokens_used": 2450,
+    "total_batches_processed": 2,
+    "prompt_versions_count": 2,
+    "total_analyses": 10
+  },
   "articles": [
     {
       "title": "Medical Breakthrough: New Treatment Shows Promise",
@@ -69,40 +81,43 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=10"
         "name": "Reuters"
       },
       "author": "Jane Smith",
-      "publishedAt": "2024-08-21T10:30:00Z",
+      "publishedAt": "2025-08-25T10:30:00Z",
       "content": "Full article content preview...",
       "api_source": "newsapi",
-      "uplift_score": 0.652,
-      "sentiment_analysis": {
-        "sentiment": {
-          "positive": 0.945,
-          "negative": 0.055,
-          "neutral": 0.0
+      "gemini_analysis": {
+        "sentiment": "positive",
+        "confidence_score": 0.85,
+        "emotions": {
+          "hope": 0.8,
+          "awe": 0.6,
+          "gratitude": 0.4,
+          "compassion": 0.7,
+          "relief": 0.3,
+          "joy": 0.5
         },
-        "confidence": 0.847,
-        "raw_emotions": {
-          "anger": 0.012,
-          "disgust": 0.008,
-          "fear": 0.043,
-          "joy": 0.234,
-          "neutral": 0.589,
-          "sadness": 0.015,
-          "surprise": 0.099
-        },
-        "uplift_emotions": {
-          "joy": 0.234,
-          "hope": 0.423,
-          "gratitude": 0.376,
-          "awe": 0.099,
-          "relief": 0.471,
-          "compassion": 0.398
-        },
-        "uplift_score": 0.652,
-        "analyzer": "transformers"
+        "categories": ["medical", "technology"],
+        "source_credibility": "high",
+        "fact_checkable_claims": "yes",
+        "evidence_quality": "strong",
+        "controversy_level": "low",
+        "solution_focused": "yes",
+        "age_appropriate": "all",
+        "truth_seeking": "no",
+        "geographic_scope": ["World", "North America"],
+        "country_focus": "United States",
+        "local_focus": "California",
+        "geographic_relevance": "primary",
+        "overall_hopefulness": 0.75,
+        "reasoning": "Medical breakthrough shows promise"
       }
     }
   ]
-}
+}_analyzed": true,
+  "prompt_versions": ["v1_comprehensive", "v2_emotion_focused"],
+  "analyzed_sources": ["newsapi", "newsdata", "afp"],
+  "sheets_logged": true,
+  "total_logged": 10,
+  "gemini
 ```
 
 **New Response Fields**:
