@@ -1,6 +1,6 @@
 """
 AFP (Agence France-Presse) client implementation
-Handles AFP API integration with OAuth2 authentication and built-in positive filtering
+Professional news service with OAuth2 authentication
 """
 import aiohttp
 import base64
@@ -20,6 +20,7 @@ class AFPClient(BaseNewsClient):
         self.password = self.get_env_var("AFP_PASSWORD")
         self.base_url = "https://afp-apicore-prod.afp.com"
         self.access_token = None
+        self.refresh_token = None
         self.token_expires_at = None
     
     def is_configured(self) -> bool:
@@ -32,12 +33,13 @@ class AFPClient(BaseNewsClient):
         ])
     
     async def _get_auth_headers(self) -> Dict[str, str]:
-        """Get authorization headers for OAuth2"""
+        """Get authorization headers for OAuth2 using clientId:clientSecret"""
         credentials = f"{self.client_id}:{self.client_secret}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode()
         return {
             'Authorization': f'Basic {encoded_credentials}',
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
         }
     
     async def _authenticate(self) -> bool:
@@ -46,6 +48,7 @@ class AFPClient(BaseNewsClient):
             async with aiohttp.ClientSession() as session:
                 url = f"{self.base_url}/oauth/token"
                 headers = await self._get_auth_headers()
+                
                 data = {
                     'grant_type': 'password',
                     'username': self.username,
@@ -56,24 +59,53 @@ class AFPClient(BaseNewsClient):
                     if response.status == 200:
                         token_data = await response.json()
                         self.access_token = token_data.get('access_token')
-                        expires_in = token_data.get('expires_in', 18000)  # Default 5 hours
+                        self.refresh_token = token_data.get('refresh_token')
+                        expires_in = token_data.get('expires_in', 18000)
                         self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
                         return True
                     else:
                         return False
+                        
         except Exception:
             return False
     
+    async def _refresh_token_if_needed(self) -> bool:
+        """Use refresh token to get new access token if needed"""
+        if not self.refresh_token:
+            return await self._authenticate()
+            
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.base_url}/oauth/token"
+                headers = await self._get_auth_headers()
+                
+                data = {
+                    'grant_type': 'refresh_token',
+                    'refresh_token': self.refresh_token
+                }
+                
+                async with session.post(url, headers=headers, data=data) as response:
+                    if response.status == 200:
+                        token_data = await response.json()
+                        self.access_token = token_data.get('access_token')
+                        self.refresh_token = token_data.get('refresh_token')
+                        expires_in = token_data.get('expires_in', 18000)
+                        self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                        return True
+                    else:
+                        return await self._authenticate()
+                        
+        except Exception:
+            return await self._authenticate()
+    
     async def _ensure_authenticated(self) -> bool:
         """Ensure we have a valid access token"""
-        # Check if token exists and is not expired
         if (self.access_token and 
             self.token_expires_at and 
-            datetime.now() < self.token_expires_at - timedelta(minutes=5)):  # 5 min buffer
+            datetime.now() < self.token_expires_at - timedelta(minutes=5)):
             return True
         
-        # Re-authenticate
-        return await self._authenticate()
+        return await self._refresh_token_if_needed()
     
     async def test_connection(self) -> Dict[str, Any]:
         """Test AFP API connection"""
@@ -81,10 +113,9 @@ class AFPClient(BaseNewsClient):
             return {
                 'source': self.source_name,
                 'status': 'error',
-                'message': 'AFP credentials not configured (need CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD)'
+                'message': 'AFP credentials not configured'
             }
         
-        # Test authentication
         if await self._authenticate():
             return {
                 'source': self.source_name,
@@ -95,11 +126,11 @@ class AFPClient(BaseNewsClient):
             return {
                 'source': self.source_name,
                 'status': 'error',
-                'message': 'Authentication failed - check credentials'
+                'message': 'Authentication failed'
             }
     
     async def fetch_news(self, query: str = "", language: str = "en", page_size: int = 20) -> Dict[str, Any]:
-        """Fetch positive news from AFP using built-in genre filtering"""
+        """Fetch positive news from AFP using inspiring genre filter"""
         if not self.is_configured():
             return self.format_error_response("AFP credentials not configured")
         
@@ -108,28 +139,36 @@ class AFPClient(BaseNewsClient):
         
         try:
             async with aiohttp.ClientSession() as session:
-                url = f"{self.base_url}/v1/api/search"
+                url = f"{self.base_url}/v1/api/search?wt=g2"
                 headers = {
                     'Authorization': f'Bearer {self.access_token}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 }
                 
-                # AFP search query with built-in positive filtering
                 search_body = {
-                    "dateRange": {"from": "now-7d", "to": "now"},
+                    "dateRange": {
+                        "from": "now-7d",
+                        "to": "now"
+                    },
                     "sortOrder": "desc",
                     "sortField": "published",
-                    "lang": language,
                     "maxRows": str(min(page_size, 100)),
+                    "lang": language,
                     "query": {
                         "and": [
-                            {"name": "class", "and": ["text"]},
-                            {"name": "genre", "and": ["inspiring"]}  # AFP's built-in positive filter!
+                            {
+                                "name": "class",
+                                "and": ["text"]
+                            },
+                            {
+                                "name": "genre",
+                                "and": ["inspiring"]
+                            }
                         ]
                     }
                 }
                 
-                # Add custom query terms if provided
                 if query:
                     search_body["query"]["and"].append({
                         "name": "fulltext", 
@@ -138,57 +177,66 @@ class AFPClient(BaseNewsClient):
                 
                 async with session.post(url, headers=headers, json=search_body) as response:
                     if response.status == 200:
-                        data = await response.json()
-                        
-                        # DEBUG: Let's see what AFP actually returns
-                        print(f"🔍 AFP Response Status: {response.status}")
-                        print(f"🔍 AFP Raw Data Keys: {list(data.keys())}")
-                        print(f"🔍 AFP Total Results: {data}")
-                        
-                        # Normalize articles
-                        raw_articles = data.get('documents', [])
-                        normalized_articles = [
-                            self.normalize_article(article) 
-                            for article in raw_articles
-                        ]
-                        
-                        # Remove duplicates
-                        unique_articles = self.remove_duplicates(normalized_articles)
-                        
-                        return {
-                            'status': 'success',
-                            'source': self.source_name,
-                            'totalResults': data.get('totalHits', len(unique_articles)),
-                            'articles': unique_articles
-                        }
+                        try:
+                            data = await response.json()
+                            response_data = data.get('response', {})
+                            total_hits = response_data.get('numFound', 0)
+                            raw_articles = response_data.get('docs', [])
+                            
+                            normalized_articles = [
+                                self.normalize_article(article) 
+                                for article in raw_articles
+                            ]
+                            
+                            unique_articles = self.remove_duplicates(normalized_articles)
+                            
+                            return {
+                                'status': 'success',
+                                'source': self.source_name,
+                                'totalResults': total_hits,
+                                'articles': unique_articles
+                            }
+                            
+                        except Exception as json_error:
+                            return self.format_error_response(f"Response parsing failed: {json_error}")
+                            
                     else:
-                        error_text = await response.text()
-                        return self.format_error_response(
-                            f"AFP search error: HTTP {response.status} - {error_text}"
-                        )
+                        return self.format_error_response(f"Search error: HTTP {response.status}")
         
         except Exception as e:
-            return self.format_error_response(f"AFP request failed: {str(e)}")
+            return self.format_error_response(f"Request failed: {str(e)}")
     
     def normalize_article(self, raw_article: Dict[str, Any]) -> Dict[str, Any]:
         """Convert AFP article to standard format"""
         normalized = self.base_article_structure.copy()
         
-        # AFP has complex nested structure
-        header = raw_article.get('header', {})
+        # Handle creator field safely
+        creator = raw_article.get('creator', 'AFP')
+        if isinstance(creator, list):
+            author = ', '.join(str(c) for c in creator) if creator else 'AFP'
+        else:
+            author = str(creator) if creator else 'AFP'
+        
+        # Handle news field - it's an array of paragraphs
+        news_paragraphs = raw_article.get('news', [])
+        if isinstance(news_paragraphs, list):
+            content = '\n\n'.join(news_paragraphs)[:500] + '...' if news_paragraphs else ''
+        else:
+            content = str(news_paragraphs)[:500] + '...' if news_paragraphs else ''
         
         normalized.update({
-            'title': header.get('headline', ''),
-            'description': header.get('abstract', ''),
+            'title': raw_article.get('headline', raw_article.get('title', '')),
+            'description': raw_article.get('abstract', ''),
             'url': raw_article.get('href', ''),
-            'urlToImage': None,  # AFP typically doesn't include images in search results
+            'urlToImage': None,
             'source': {
                 'id': 'afp',
                 'name': 'Agence France-Presse'
             },
-            'author': ', '.join(header.get('byline', [])) if header.get('byline') else 'AFP',
-            'publishedAt': header.get('published', ''),
-            'content': raw_article.get('contentSet', {}).get('inlineData', '')[:200] + '...' if raw_article.get('contentSet') else None,
-            'api_source': 'afp'  # Track which API provided this article
+            'author': author,
+            'publishedAt': raw_article.get('published', ''),
+            'content': content,
+            'api_source': 'afp'
         })
+        
         return normalized

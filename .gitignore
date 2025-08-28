@@ -119,6 +119,18 @@ prompt_experiments/
 # DEVELOPMENT & DEBUGGING
 # =============================================================================
 
+# Source configuration backups
+sources_backup_*.yaml
+sources_test_*.yaml
+
+# Performance logs
+performance_*.log
+gemini_timing_*.json
+
+# AFP debug files
+afp_debug.py
+afp_response_*.json
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*

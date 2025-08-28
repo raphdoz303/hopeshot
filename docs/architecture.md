@@ -19,8 +19,7 @@ hopeshot/
 ├── README.md                      # Project overview
 ├── CHANGELOG.md                   # Version history  
 ├── .env.example                   # Environment variables template
-├── .gitignore                     # Define files to ignore for Git
-├── prompts.yaml                   # A/B testing prompt configurations
+├── .gitignore                     # Git ignore rules
 ├── docs/                          # Documentation
 │   ├── api.md                     # API endpoint documentation
 │   ├── architecture.md            # This file
@@ -37,28 +36,29 @@ hopeshot/
 ├── backend/
 │   ├── main.py                    # FastAPI application with multi-prompt endpoints
 │   ├── requirements.txt           # Python dependencies
-│   ├── .env                       # API keys and configuration
+│   ├── .env                       # API keys and configuration (gitignored)
 │   ├── prompts.yaml               # A/B testing prompt configurations
+│   ├── sources.yaml               # News source configuration with ethical limits
 │   ├── gsheetapi_credentials.json # Google Sheets service account (gitignored)
 │   ├── test_sentiment.py          # Legacy sentiment analysis testing tool
 │   ├── test_gemini.py             # Gemini API connection testing
 │   ├── test_analysis.py           # Gemini analysis functionality testing
 │   ├── test_full_pipeline.py      # End-to-end pipeline testing
 │   ├── test_sheets_gemini.py      # Google Sheets integration testing
-│   └── services/                  # Multi-source architecture
-│       ├── sentiment/             # Legacy sentiment analysis service folder
+│   └── services/                  # Service-oriented architecture
+│       ├── sentiment/             # Legacy sentiment analysis (backup)
 │       │   ├── __init__.py        # Package initialization
 │       │   ├── base_analyzer.py   # Abstract base for analyzers
-│       │   ├── sentiment_service.py # Orchestrator managing multiple analyzers
-│       │   └── transformers_analyzer.py # Legacy sentiment analyzer (backup)
+│       │   ├── sentiment_service.py # Orchestrator for analyzers
+│       │   └── transformers_analyzer.py # Legacy sentiment (backup)
 │       ├── __init__.py            # Package initialization
-│       ├── base_client.py         # Abstract base class
+│       ├── base_client.py         # Abstract base class for news clients
 │       ├── newsapi_client.py      # NewsAPI.org client
 │       ├── newsdata_client.py     # NewsData.io client  
-│       ├── afp_client.py          # AFP client with OAuth2
-│       ├── news_service.py        # Multi-source orchestrator
-│       ├── gemini_service.py      # Google Gemini API with multi-prompt A/B testing
-│       └── sheets_service.py      # Google Sheets integration with comparative data logging
+│       ├── afp_client.py          # AFP client with OAuth2 (FIXED)
+│       ├── news_service.py        # Multi-source orchestrator with YAML config
+│       ├── gemini_service.py      # Optimized multi-prompt single-request analysis
+│       └── sheets_service.py      # Google Sheets integration with A/B tracking
 └── scripts/                       # Utility scripts (empty)
 ```
 

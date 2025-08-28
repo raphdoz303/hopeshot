@@ -4,6 +4,38 @@
 
 ---
 
+## [0.8.0] - 2025-08-28
+
+### Added
+- **YAML-based source configuration** (`sources.yaml`) for dynamic news source management
+- **Ethical content limits** - Daily article caps and quality thresholds to prevent endless scrolling
+- **Combined multi-prompt analysis** - All A/B test prompts now execute in single Gemini request
+
+### Fixed
+- **AFP integration now working** - Corrected response parsing from `data.documents` to `data.response.docs`
+- **AFP article normalization** - Properly handles array-based `news` field and `creator` field variations
+- **Multi-prompt performance** - Reduced analysis time from 2+ minutes to ~10 seconds
+
+### Changed
+- **NewsService architecture** - Now reads source configuration from YAML file
+- **GeminiService optimization** - Single-request multi-prompt analysis instead of sequential
+- **Source priority system** - Configurable quality scores and daily limits per source
+
+### Technical
+- **AFP response structure** correctly parsed with nested `response.docs` path
+- **Configuration-driven sources** enable/disable sources without code changes
+- **Performance improvement** 10-20x faster multi-prompt analysis
+
+### Dependencies
+- No new dependencies (leveraged existing pyyaml)
+
+### Notes
+- **AFP "inspiring" filter active** - Only returns 4-10 curated articles per week
+- **Ethical design implemented** - Limits prevent dark patterns and endless scrolling
+- **Ready for Reuters** - Architecture supports easy addition of new sources
+
+---
+
 ## [0.7.0] - 2025-08-25
 
 ### Added

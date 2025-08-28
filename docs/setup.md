@@ -138,6 +138,29 @@ Frontend will be available at `http://localhost:3000`
    AFP_PASSWORD=your_password
    ```
 
+### Source Configuration Setup
+
+1. **Configure News Sources**
+   ```bash
+   # Edit backend/sources.yaml to enable/disable sources
+   # Set active: true/false for each source
+   # Adjust quality_score and daily_limit as needed
+   ```
+
+2. **AFP Specific Configuration**
+   - AFP uses "inspiring" genre filter (highly curated, ~4-10 articles/week)
+   - To get more articles, consider:
+     - Extending date range in `afp_client.py`: `"from": "now-30d"`
+     - Removing genre filter (will require own quality filtering)
+     - Enabling additional sources in `sources.yaml`
+
+### Performance Optimization Note
+
+The system now uses optimized multi-prompt analysis:
+- All prompts analyzed in single request (~10 seconds total)
+- 2-minute spacing only between different article batches
+- To adjust prompt count, edit `prompts.yaml` and set `active: true/false`
+
 ---
 
 ## A/B Testing Configuration

@@ -220,6 +220,23 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
 - **Geographic Analysis**: `geographic_scope`, `country_focus`, `local_focus`, `geographic_relevance`
 - **Overall Assessment**: `overall_hopefulness` score and brief `reasoning`
 
+---
+
+### Source Configuration Response Updates
+
+The `/api/news` endpoint now respects `sources.yaml` configuration:
+
+**Configuration-Based Filtering**:
+- Only active sources (marked `active: true`) are queried
+- Daily limits per source are enforced
+- Quality thresholds filter low-quality sources
+- AFP's "inspiring" genre filter limits results to 4-10 articles/week
+
+**Performance Improvements**:
+- Multi-prompt analysis now completes in ~10 seconds (vs 2+ minutes)
+- Single Gemini request analyzes all prompt versions simultaneously
+- 2-minute rate limiting only applies between different article batches
+
 
 ---
 
@@ -232,22 +249,37 @@ Get information about all news sources and their configuration.
   "status": "success",
   "sources": {
     "afp": {
-      "name": "AFP",
+      "name": "Agence France-Presse",
+      "active": true,
       "configured": true,
-      "priority": 1
+      "priority": 1,
+      "quality_score": 10,
+      "daily_limit": 20
     },
     "newsapi": {
-      "name": "NEWSAPI", 
+      "name": "NewsAPI.org",
+      "active": false,
       "configured": true,
-      "priority": 2
+      "priority": 2,
+      "quality_score": 5,
+      "daily_limit": 10
     },
     "newsdata": {
-      "name": "NEWSDATA",
-      "configured": true, 
-      "priority": 3
+      "name": "NewsData.io",
+      "active": false,
+      "configured": true,
+      "priority": 3,
+      "quality_score": 3,
+      "daily_limit": 5
     }
   },
-  "priority_order": ["afp", "newsapi", "newsdata"]
+  "priority_order": ["afp"],
+  "settings": {
+    "total_daily_limit": 30,
+    "min_quality_score": 7,
+    "refresh_interval": "6h",
+    "pagination_size": 10
+  }
 }
 ```
 

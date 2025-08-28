@@ -1,8 +1,10 @@
 """
 Unified news service orchestrator
-Combines multiple news sources with priority system and graceful degradation
+Configurable multi-source management via sources.yaml
 """
 import asyncio
+import yaml
+import os
 from typing import Dict, List, Any, Optional
 from .newsapi_client import NewsAPIClient
 from .newsdata_client import NewsDataClient
@@ -10,35 +12,79 @@ from .afp_client import AFPClient
 
 
 class NewsService:
-    """Orchestrates multiple news sources with priority system"""
+    """Orchestrates multiple news sources with YAML configuration"""
     
     def __init__(self):
-        # Initialize all clients
-        self.clients = {
-            'afp': AFPClient(),
-            'newsapi': NewsAPIClient(),
-            'newsdata': NewsDataClient()
+        # Load source configuration
+        self.config = self._load_source_config()
+        
+        # Initialize configured clients
+        self.clients = {}
+        self._initialize_clients()
+        
+        # Build priority order from active sources
+        self.priority_order = self._get_priority_order()
+    
+    def _load_source_config(self) -> Dict[str, Any]:
+        """Load source configuration from YAML file"""
+        config_path = os.path.join(os.path.dirname(__file__), '..', 'sources.yaml')
+        
+        try:
+            with open(config_path, 'r') as f:
+                return yaml.safe_load(f)
+        except FileNotFoundError:
+            # Fallback to defaults if no config file
+            print("⚠️ sources.yaml not found, using defaults")
+            return {
+                'afp': {'active': True, 'priority': 1},
+                'newsapi': {'active': True, 'priority': 2},
+                'newsdata': {'active': True, 'priority': 3},
+                'settings': {'total_daily_limit': 30}
+            }
+    
+    def _initialize_clients(self):
+        """Initialize only active news clients"""
+        client_classes = {
+            'afp': AFPClient,
+            'newsapi': NewsAPIClient,
+            'newsdata': NewsDataClient
+            # Future: 'reuters': ReutersClient
         }
         
-        # Priority order (highest to lowest quality)
-        self.priority_order = ['afp', 'newsapi', 'newsdata']
+        for source_key, source_config in self.config.items():
+            if source_key == 'settings':
+                continue
+                
+            if source_config.get('active', False) and source_key in client_classes:
+                client = client_classes[source_key]()
+                if client.is_configured():
+                    self.clients[source_key] = client
+                    print(f"✅ {source_key.upper()} client initialized")
+                else:
+                    print(f"⚠️ {source_key.upper()} not configured (missing credentials)")
+    
+    def _get_priority_order(self) -> List[str]:
+        """Build priority order from active sources"""
+        active_sources = [
+            (key, config.get('priority', 999))
+            for key, config in self.config.items()
+            if key != 'settings' and config.get('active', False) and key in self.clients
+        ]
+        
+        active_sources.sort(key=lambda x: x[1])
+        return [source[0] for source in active_sources]
     
     def get_available_sources(self) -> List[str]:
         """Get list of configured and available news sources"""
-        return [
-            source for source, client in self.clients.items() 
-            if client.is_configured()
-        ]
+        return list(self.clients.keys())
     
     async def test_all_sources(self) -> Dict[str, Any]:
         """Test connection to all configured news sources"""
         results = {}
         
-        # Test all sources concurrently
         tasks = []
         for source, client in self.clients.items():
-            if client.is_configured():
-                tasks.append(self._test_source(source, client))
+            tasks.append(self._test_source(source, client))
         
         if tasks:
             test_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -49,6 +95,8 @@ class NewsService:
         return {
             'status': 'success',
             'sources_tested': len(results),
+            'config_file': 'sources.yaml',
+            'active_sources': self.priority_order,
             'results': results
         }
     
@@ -64,28 +112,34 @@ class NewsService:
             }
     
     async def fetch_unified_news(self, query: str = "", language: str = "en", page_size: int = 20) -> Dict[str, Any]:
-        """
-        Fetch news from all available sources and combine results
-        Uses priority system: AFP -> NewsAPI -> NewsData
-        """
+        """Fetch news from active sources based on configuration"""
         available_sources = self.get_available_sources()
         
         if not available_sources:
             return {
                 'status': 'error',
-                'error': 'No news sources configured',
+                'error': 'No news sources configured or active',
                 'sources_used': [],
                 'articles': []
             }
         
-        # Calculate articles per source (distribute evenly)
-        articles_per_source = max(1, page_size // len(available_sources))
+        # Apply global limits from settings
+        settings = self.config.get('settings', {})
+        max_articles = min(page_size, settings.get('total_daily_limit', 30))
+        
+        # Calculate articles per source based on their daily limits
+        source_limits = {}
+        for source in available_sources:
+            source_config = self.config.get(source, {})
+            source_limit = source_config.get('daily_limit', 10)
+            source_limits[source] = min(source_limit, max_articles // len(available_sources))
         
         # Fetch from all sources concurrently
         tasks = []
         for source in available_sources:
             client = self.clients[source]
-            tasks.append(self._fetch_from_source(source, client, query, language, articles_per_source))
+            limit = source_limits[source]
+            tasks.append(self._fetch_from_source(source, client, query, language, limit))
         
         source_results = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -97,8 +151,12 @@ class NewsService:
         for result in source_results:
             if isinstance(result, dict) and result.get('status') == 'success':
                 articles = result.get('articles', [])
-                if articles:
-                    # Note: api_source is already added by normalize_article() in each client
+                
+                # Apply quality filtering if configured
+                min_quality = settings.get('min_quality_score', 0)
+                source_quality = self.config.get(result.get('source'), {}).get('quality_score', 10)
+                
+                if source_quality >= min_quality and articles:
                     all_articles.extend(articles)
                     sources_used.append(result.get('source'))
             elif isinstance(result, dict):
@@ -107,14 +165,12 @@ class NewsService:
                     'error': result.get('error', 'Unknown error')
                 })
         
-        # Sort articles by priority (AFP first, then NewsAPI, then NewsData)
+        # Sort by priority
         all_articles.sort(key=lambda x: self.priority_order.index(x.get('api_source', 'newsdata')))
         
-        # Remove cross-source duplicates and limit to requested size
+        # Remove cross-source duplicates
         unique_articles = self._remove_cross_source_duplicates(all_articles)
-        final_articles = unique_articles[:page_size]
-        
-        # No need to clean up metadata - api_source stays in the response
+        final_articles = unique_articles[:max_articles]
         
         return {
             'status': 'success',
@@ -128,10 +184,10 @@ class NewsService:
         }
     
     async def _fetch_from_source(self, source: str, client, query: str, language: str, page_size: int) -> Dict[str, Any]:
-        """Fetch articles from individual source with error handling"""
+        """Fetch articles from individual source"""
         try:
             result = await client.fetch_news(query, language, page_size)
-            result['source'] = source  # Ensure source is included
+            result['source'] = source
             return result
         except Exception as e:
             return {
@@ -142,24 +198,18 @@ class NewsService:
             }
     
     def _remove_cross_source_duplicates(self, articles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Remove duplicate articles across different sources based on title similarity
-        TODO: Enhance this later to use more sophisticated text comparison (semantic similarity, etc.)
-        """
+        """Remove duplicate articles across sources using similarity check"""
         seen_titles = set()
         unique_articles = []
         
         for article in articles:
             title = article.get('title', '').strip().lower()
-            
-            # Simple word-based similarity check
             title_words = set(title.split())
             is_duplicate = False
             
             for seen_title in seen_titles:
                 seen_words = set(seen_title.split())
                 
-                # If 70% of words overlap, consider it duplicate
                 if title_words and seen_words:
                     overlap = len(title_words.intersection(seen_words))
                     similarity = overlap / max(len(title_words), len(seen_words))
@@ -174,18 +224,25 @@ class NewsService:
         return unique_articles
     
     async def get_source_info(self) -> Dict[str, Any]:
-        """Get information about all news sources and their configuration status"""
+        """Get information about all configured sources"""
         source_info = {}
         
-        for source, client in self.clients.items():
-            source_info[source] = {
-                'name': source.upper(),
-                'configured': client.is_configured(),
-                'priority': self.priority_order.index(source) + 1
+        for source_key, source_config in self.config.items():
+            if source_key == 'settings':
+                continue
+                
+            source_info[source_key] = {
+                'name': source_config.get('name', source_key.upper()),
+                'active': source_config.get('active', False),
+                'configured': source_key in self.clients,
+                'priority': source_config.get('priority', 999),
+                'quality_score': source_config.get('quality_score', 5),
+                'daily_limit': source_config.get('daily_limit', 10)
             }
         
         return {
             'status': 'success',
             'sources': source_info,
-            'priority_order': self.priority_order
+            'priority_order': self.priority_order,
+            'settings': self.config.get('settings', {})
         }

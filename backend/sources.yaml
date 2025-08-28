@@ -1,0 +1,41 @@
+# sources.yaml - News Source Configuration
+# Ethical news curation: Quality over quantity
+
+afp:
+  name: "Agence France-Presse"
+  active: true
+  priority: 1
+  description: "Professional journalism with 'inspiring' genre filter"
+  quality_score: 10
+  daily_limit: 20  # Prevent endless scrolling
+  filters:
+    genre: "inspiring"
+    timeframe: "7d"
+
+newsapi:
+  name: "NewsAPI.org"
+  active: false  # Disabled for now - lower quality
+  priority: 2
+  description: "Mainstream news aggregator"
+  quality_score: 5
+  daily_limit: 10
+  filters:
+    keywords: ["breakthrough", "success", "achievement", "innovation"]
+    exclude: ["violence", "crash", "dies", "killed"]
+
+newsdata:
+  name: "NewsData.io"
+  active: false  # Disabled for now - lowest quality
+  priority: 3
+  description: "Alternative international sources"
+  quality_score: 3
+  daily_limit: 5
+  filters:
+    categories: ["science", "technology", "health", "environment"]
+
+# Global settings for ethical presentation
+settings:
+  total_daily_limit: 30  # Hard cap on total articles
+  min_quality_score: 7   # Only show high-quality content
+  refresh_interval: "6h"  # Update only 4 times per day
+  pagination_size: 10     # Small batches, no infinite scroll
