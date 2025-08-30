@@ -63,6 +63,31 @@ backend/models/
 *.safetensors
 
 # =============================================================================
+# DATABASE FILES (NEW - v0.9.0)
+# =============================================================================
+
+# SQLite database files (CRITICAL - NEVER COMMIT)
+*.db
+*.sqlite
+*.sqlite3
+hopeshot_news.db
+backend/hopeshot_news.db
+
+# Database backup files
+*.db.backup
+*.sqlite.backup
+database_backup_*.db
+
+# Database migration logs
+migration_*.log
+database_migration_*.sql
+
+# Database debug files
+quick_check.py
+check_categories.py
+debug_*.py
+
+# =============================================================================
 # ENVIRONMENT & CONFIGURATION
 # =============================================================================
 
@@ -103,6 +128,9 @@ transformers_cache/
 # IMPORTANT: prompts.yaml should be tracked for collaborative development
 # This allows team members to share and iterate on prompt variations
 # !backend/prompts.yaml  # Keep this file in version control
+
+# IMPORTANT: sources.yaml should be tracked for source configuration
+# !backend/sources.yaml  # Keep this file in version control
 
 # A/B testing data and analysis files
 backend/ab_test_results/
@@ -155,6 +183,16 @@ temp_*.py
 debug_*.json
 test_output.json
 quick_test_*.py
+
+# Database debug and test files
+database_debug_*.py
+db_test_*.py
+migration_test_*.py
+
+# API response debug files
+response.txt
+health.txt
+api_debug_*.json
 
 # Testing artifacts
 test_results/
@@ -251,6 +289,7 @@ anthropic_*.json
 !*.config.json
 !tsconfig.json
 !prompts.yaml
+!sources.yaml
 
 # Google Sheets export files
 sheets_export_*.csv
@@ -267,6 +306,12 @@ prompt_performance_analysis_*.xlsx
 comparative_analysis_*.csv
 ab_testing_metrics_*.json
 
+# Database export files
+database_export_*.json
+sqlite_dump_*.sql
+category_export_*.csv
+location_export_*.csv
+
 # =============================================================================
 # PROJECT-SPECIFIC EXCLUSIONS
 # =============================================================================
@@ -278,10 +323,14 @@ ab_testing_metrics_*.json
 !backend/test_full_pipeline.py
 !backend/test_sheets_gemini.py
 !backend/debug_emotions.py
+!backend/database_setup.py
+!backend/database_migration.py
 
 # Keep A/B testing configuration and documentation
 !backend/prompts.yaml
+!backend/sources.yaml
 !prompts.yaml
+!sources.yaml
 
 # Version control and documentation
 !CHANGELOG.md
@@ -298,14 +347,34 @@ ab_testing_metrics_*.json
 !next.config.js
 
 # =============================================================================
-# A/B TESTING NOTES
+# DATABASE & STORAGE NOTES (v0.9.0)
 # =============================================================================
 
-# prompts.yaml is intentionally tracked in version control to enable:
-# - Collaborative prompt development
-# - Version history of prompt iterations  
-# - Shared prompt experiments across team members
+# hopeshot_news.db is intentionally excluded from version control because:
+# - Contains user-specific article data and API responses
+# - Database schema is recreated via database_setup.py script
+# - Development databases should not be shared between team members
+# - Production databases require separate deployment and backup strategies
+#
+# Configuration files (prompts.yaml, sources.yaml) are tracked to enable:
+# - Collaborative prompt development and source management
+# - Version history of experimental configurations
+# - Shared A/B testing experiments across team members
 # - Systematic tracking of prompt performance improvements
 #
-# Sensitive data like API responses and analysis results are excluded
-# but prompt configurations themselves are part of the codebase
+# Database structure is defined in code (database_setup.py) rather than
+# committed database files for proper version control and team collaboration
+
+# =============================================================================
+# DUAL STORAGE ARCHITECTURE NOTES
+# =============================================================================
+
+# SQLite database files excluded but schema tracked in:
+# - database_setup.py (initial schema creation)
+# - database_migration.py (schema evolution scripts)
+# - services/database_service.py (auto-creation logic)
+#
+# Google Sheets integration configured via:
+# - .env file (GOOGLE_SHEETS_ID)
+# - gsheetapi_credentials.json (excluded service account)
+# - services/sheets_service.py (schema mapping)

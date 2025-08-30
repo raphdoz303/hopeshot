@@ -4,6 +4,57 @@
 
 ---
 
+## [0.9.0] - 2025-08-29
+
+### Added
+- **Complete SQLite database integration** with normalized schema supporting 40 columns from Google Sheets
+- **Multi-location junction table architecture** enabling complex geographic relationships for articles
+- **Auto-creation system** for categories and geographic locations with hierarchical relationships
+- **Dual storage pipeline** - SQLite for application data, Google Sheets for A/B testing research
+- **Database connection reuse pattern** preventing lock issues during bulk operations
+- **Geographic hierarchy auto-generation** (Vietnam → Southeast Asia → Asia) with parent-child relationships
+
+### Changed
+- **Geographic schema simplification** from 4 fields to 2 fields (`geographical_impact_level`, `geographical_impact_location`)
+- **GeminiService geographic processing** to handle location arrays and auto-create database entries
+- **DatabaseService architecture** with junction tables for categories and locations
+- **SheetsService geographic handling** to convert location arrays to comma-separated strings
+- **API response enhancement** with database insertion counts and dual storage status
+
+### Fixed
+- **Database locking issues** through connection reuse pattern in category creation
+- **Geographic array processing** handling both single values and multi-country arrays from Gemini
+- **Type safety improvements** for geographic data processing preventing `.lower()` errors on lists
+- **Schema consistency** between GeminiService output and database/sheets storage
+
+### Technical
+- **5-table normalized database** (articles, categories, locations, article_categories, article_locations)
+- **Junction table relationships** enabling many-to-many for categories and locations
+- **Database migration system** preserving existing data while adding new schema
+- **Enhanced error handling** with detailed debugging for geographic processing
+
+### Architecture
+- **Service layer separation** - Database operations isolated from API logic
+- **Auto-creation patterns** - System grows organically as new categories/locations discovered
+- **Dual storage strategy** - Clean application data in SQLite, comprehensive research data in Sheets
+- **Connection management** - Reused connections prevent database locks during bulk operations
+
+### Dependencies
+- No new external dependencies (leveraged built-in SQLite)
+
+### Performance
+- **Multi-location processing** with minimal performance impact through efficient junction queries
+- **Database indexing** on key fields for fast location and category lookups
+- **Connection reuse** eliminating database lock contention
+
+### Notes
+- **AFP "inspiring" filter removed** - Now fetches all available articles instead of 4-10 curated weekly
+- **Geographic hierarchy** uses simple country-to-region mapping (extensible to external APIs)
+- **Categories auto-created** but need prompt refinement for better classification accuracy
+- **Ready for RSS integration** - Database architecture supports both API and RSS sources
+
+---
+
 ## [0.8.0] - 2025-08-28
 
 ### Added

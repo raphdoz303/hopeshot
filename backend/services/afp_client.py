@@ -160,10 +160,6 @@ class AFPClient(BaseNewsClient):
                             {
                                 "name": "class",
                                 "and": ["text"]
-                            },
-                            {
-                                "name": "genre",
-                                "and": ["inspiring"]
                             }
                         ]
                     }

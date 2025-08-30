@@ -16,13 +16,13 @@ Root endpoint providing basic API information.
 {
   "message": "Hello from HopeShot backend! 🌟",
   "status": "running",
-  "version": "0.5.0",
+  "version": "0.9.0",
   "features": [
     "Multi-source news aggregation",
-    "AFP professional news integration", 
-    "AI-powered sentiment analysis",
-    "Real-time Google Sheets data logging",
-    "Cross-source duplicate removal"
+    "SQLite database storage with auto-creation",
+    "Google Sheets A/B testing data",
+    "Multi-prompt analysis framework",
+    "Geographic hierarchy management"
   ]
 }
 ```
@@ -30,7 +30,7 @@ Root endpoint providing basic API information.
 ---
 
 ### **GET /api/news**
-Fetch positive news from all available sources with multi-prompt Gemini analysis and automatic comparative Google Sheets logging.
+Fetch positive news from all available sources with multi-prompt Gemini analysis and dual storage (SQLite database + Google Sheets).
 
 **Query Parameters**:
 - `q` (optional): Search keywords (default: positive keywords per source)
@@ -42,136 +42,41 @@ Fetch positive news from all available sources with multi-prompt Gemini analysis
 curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
 ```
 
-**A/B Testing Response Fields**:
-- `prompt_versions`: Array of active prompt versions used for analysis
-- `gemini_stats.prompt_versions_count`: Number of prompts that analyzed each article
-- `gemini_stats.total_analyses`: Total analysis operations (articles × prompt versions)
-- `sheets_logged`: Boolean indicating successful logging of comparative analysis data
-- `total_logged`: Number of rows logged to Google Sheets (articles × prompt versions)
-
-**Google Sheets Data Collection**:
-- Each article generates multiple rows in Google Sheets (one per prompt version)
-- Prompt version tracking in reserved columns for A/B testing comparison
-- Side-by-side analysis results for identical articles enable systematic prompt optimization
-
-**Response Structure**:
+**Enhanced Response with Dual Storage**:
 ```json
 {
   "status": "success",
   "query": "medical breakthrough",
-  "totalSources": 3,
-  "sourcesUsed": ["newsapi", "newsdata", "afp"],
+  "totalSources": 1,
+  "sourcesUsed": ["afp"],
   "sourcesFailed": [],
   "totalArticles": 5,
-  "crossSourceDuplicatesRemoved": 1,
-  "gemini_stats": {
-    "total_tokens_used": 2450,
-    "total_batches_processed": 2,
-    "prompt_versions_count": 2,
-    "total_analyses": 10
-  },
-  "articles": [
-    {
-      "title": "Medical Breakthrough: New Treatment Shows Promise",
-      "description": "Scientists discover innovative approach...",
-      "url": "https://example.com/article",
-      "urlToImage": "https://example.com/image.jpg",
-      "source": {
-        "id": "reuters",
-        "name": "Reuters"
-      },
-      "author": "Jane Smith",
-      "publishedAt": "2025-08-25T10:30:00Z",
-      "content": "Full article content preview...",
-      "api_source": "newsapi",
-      "gemini_analysis": {
-        "sentiment": "positive",
-        "confidence_score": 0.85,
-        "emotions": {
-          "hope": 0.8,
-          "awe": 0.6,
-          "gratitude": 0.4,
-          "compassion": 0.7,
-          "relief": 0.3,
-          "joy": 0.5
-        },
-        "categories": ["medical", "technology"],
-        "source_credibility": "high",
-        "fact_checkable_claims": "yes",
-        "evidence_quality": "strong",
-        "controversy_level": "low",
-        "solution_focused": "yes",
-        "age_appropriate": "all",
-        "truth_seeking": "no",
-        "geographic_scope": ["World", "North America"],
-        "country_focus": "United States",
-        "local_focus": "California",
-        "geographic_relevance": "primary",
-        "overall_hopefulness": 0.75,
-        "reasoning": "Medical breakthrough shows promise"
-      }
-    }
-  ]
-}_analyzed": true,
-  "prompt_versions": ["v1_comprehensive", "v2_emotion_focused"],
-  "analyzed_sources": ["newsapi", "newsdata", "afp"],
-  "sheets_logged": true,
-  "total_logged": 10,
-  "gemini
-```
-
-**New Response Fields**:
-- `sentiment_analyzed`: Boolean indicating if sentiment analysis was performed
-- `analyzed_sources`: Array of sources that received sentiment analysis
-- `sheets_logged`: Boolean indicating if articles were successfully logged to Google Sheets
-- `total_logged`: Number of articles logged to sheets
-- `uplift_score`: Overall positivity score (0.0 to 1.0) for each article
-- `sentiment_analysis`: Complete sentiment breakdown with emotions and confidence
-
-**Priority System**:
-1. **AFP** (highest quality) - Professional journalism with "inspiring" genre filter
-2. **NewsAPI** (mainstream) - Major news sources with positive keyword filtering  
-3. **NewsData** (alternative) - International sources with category filtering
-
-**Sentiment Analysis Coverage**:
-- ✅ **NewsAPI articles** - Full sentiment analysis with uplift scoring
-- ✅ **NewsData articles** - Full sentiment analysis with uplift scoring  
-- ❌ **AFP articles** - Excluded (uses built-in positive filtering)
-
-
-**Enhanced Response with Gemini Analysis**:
-```json
-{
-  "status": "success",
-  "query": "medical breakthrough",
-  "totalSources": 3,
-  "sourcesUsed": ["newsapi", "newsdata", "afp"],
-  "sourcesFailed": [],
-  "totalArticles": 8,
-  "crossSourceDuplicatesRemoved": 2,
+  "crossSourceDuplicatesRemoved": 0,
   "gemini_analyzed": true,
-  "analyzed_sources": ["newsapi", "newsdata", "afp"],
+  "prompt_versions": ["v1_comprehensive", "v2_precision", "v3_empathy_depth"],
+  "database_inserted": 5,
   "sheets_logged": true,
-  "total_logged": 8,
+  "total_logged": 15,
   "gemini_stats": {
-    "total_tokens_used": 1250,
-    "average_tokens_per_article": 156,
-    "batches_processed": 1
+    "total_tokens_used": 3429,
+    "total_batches_processed": 1,
+    "prompt_versions_count": 3,
+    "total_analyses": 15
   },
   "articles": [
     {
       "title": "Medical Breakthrough: New Treatment Shows Promise",
       "description": "Scientists discover innovative approach...",
-      "url": "https://example.com/article",
-      "urlToImage": "https://example.com/image.jpg",
+      "url": "https://afp-apicore-prod.afp.com/objects/api/get?id=...",
+      "urlToImage": null,
       "source": {
-        "id": "reuters",
-        "name": "Reuters"
+        "id": "afp",
+        "name": "Agence France-Presse"
       },
       "author": "Jane Smith",
-      "publishedAt": "2024-08-22T10:30:00Z",
+      "publishedAt": "2025-08-29T10:30:00Z",
       "content": "Full article content preview...",
-      "api_source": "newsapi",
+      "api_source": "afp",
       "gemini_analysis": {
         "sentiment": "positive",
         "confidence_score": 0.85,
@@ -191,10 +96,9 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
         "solution_focused": "yes",
         "age_appropriate": "all",
         "truth_seeking": "no",
-        "geographic_scope": ["World", "North America"],
-        "country_focus": "United States",
-        "local_focus": "California",
-        "geographic_relevance": "primary",
+        "geographical_impact_level": "Global",
+        "geographical_impact_location_names": ["World"],
+        "geographical_impact_location_ids": [],
         "overall_hopefulness": 0.75,
         "reasoning": "Medical breakthrough shows promise"
       }
@@ -203,45 +107,24 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
 }
 ```
 
-**New Response Fields**:
-- `gemini_analyzed`: Boolean indicating if Gemini analysis was performed
-- `analyzed_sources`: Array of sources that received Gemini analysis
-- `sheets_logged`: Boolean indicating if articles were successfully logged to Google Sheets
-- `total_logged`: Number of articles logged to sheets
-- `gemini_stats`: Token usage and processing statistics
-- `gemini_analysis`: Complete comprehensive analysis with emotions, categories, and metadata
+**New Response Fields (v0.9.0)**:
+- `database_inserted`: Number of articles successfully stored in SQLite database
+- `geographical_impact_location_names`: Array of location names for display
+- `geographical_impact_location_ids`: Array of location database IDs for relationships
 
-**Gemini Analysis Fields**:
-- **Sentiment**: `positive/negative/neutral` with confidence score
-- **Target Emotions** (0.0-1.0): `hope`, `awe`, `gratitude`, `compassion`, `relief`, `joy`
-- **Categories**: Dynamically discovered categories (e.g., medical, technology, environment)
-- **Fact-checking Readiness**: `source_credibility`, `fact_checkable_claims`, `evidence_quality`
-- **Content Analysis**: `controversy_level`, `solution_focused`, `age_appropriate`, `truth_seeking`
-- **Geographic Analysis**: `geographic_scope`, `country_focus`, `local_focus`, `geographic_relevance`
-- **Overall Assessment**: `overall_hopefulness` score and brief `reasoning`
+**Dual Storage Strategy**:
+- **SQLite Database**: First prompt results only (clean application data, no duplicates)
+- **Google Sheets**: All prompt results (A/B testing research data with comparative analysis)
 
----
-
-### Source Configuration Response Updates
-
-The `/api/news` endpoint now respects `sources.yaml` configuration:
-
-**Configuration-Based Filtering**:
-- Only active sources (marked `active: true`) are queried
-- Daily limits per source are enforced
-- Quality thresholds filter low-quality sources
-- AFP's "inspiring" genre filter limits results to 4-10 articles/week
-
-**Performance Improvements**:
-- Multi-prompt analysis now completes in ~10 seconds (vs 2+ minutes)
-- Single Gemini request analyzes all prompt versions simultaneously
-- 2-minute rate limiting only applies between different article batches
-
+**Auto-Creation Features**:
+- Categories automatically created as Gemini discovers them
+- Geographic locations auto-created with hierarchical relationships
+- Junction tables link articles to multiple categories and locations
 
 ---
 
 ### **GET /api/sources**
-Get information about all news sources and their configuration.
+Get information about all news sources with enhanced database statistics.
 
 **Response**:
 ```json
@@ -279,6 +162,22 @@ Get information about all news sources and their configuration.
     "min_quality_score": 7,
     "refresh_interval": "6h",
     "pagination_size": 10
+  },
+  "database_stats": {
+    "articles": 19,
+    "categories": 8,
+    "locations": 12,
+    "category_relationships": 25,
+    "location_relationships": 15,
+    "articles_last_24h": 19,
+    "top_categories": [
+      {"name": "social", "count": 8},
+      {"name": "human rights", "count": 6}
+    ],
+    "top_locations": [
+      {"name": "USA", "level": "country", "count": 6},
+      {"name": "Europe", "level": "region", "count": 3}
+    ]
   }
 }
 ```
@@ -286,58 +185,87 @@ Get information about all news sources and their configuration.
 ---
 
 ### **GET /api/sources/test**
-Test connection to all configured news sources.
+Test connection to all configured sources including database and Gemini services.
 
 **Response**:
 ```json
 {
   "status": "success",
-  "sources_tested": 3,
+  "sources_tested": 1,
   "results": {
-    "newsapi": {
-      "source": "newsapi",
-      "status": "success", 
-      "message": "Connected successfully"
-    },
-    "newsdata": {
-      "source": "newsdata",
-      "status": "success",
-      "message": "Connected successfully"  
-    },
     "afp": {
       "source": "afp",
-      "status": "success",
+      "status": "success", 
       "message": "Connected and authenticated successfully"
     }
-  }
+  },
+  "database": {
+    "status": "success",
+    "message": "Database connected with multi-location support",
+    "stats": {
+      "articles": 19,
+      "categories": 8,
+      "locations": 12
+    },
+    "junction_table_exists": true
+  },
+  "gemini": {
+    "status": "success",
+    "message": "Gemini connected successfully with multi-location support",
+    "response": "Connected",
+    "database_path": "C:\\Users\\User\\hopeshot\\backend\\hopeshot_news.db",
+    "database_exists": true
+  },
+  "system_status": "All services operational"
 }
 ```
 
 ---
 
 ### **GET /health**
-Comprehensive system health check including Google Sheets integration status.
+Comprehensive system health check including database statistics and A/B testing framework status.
 
 **Response**:
 ```json
 {
   "status": "healthy",
-  "version": "0.5.0", 
+  "version": "0.9.0",
   "sources": {
-    "total_configured": 3,
-    "available_sources": ["newsapi", "newsdata", "afp"],
+    "total_configured": 1,
+    "available_sources": ["afp"],
     "source_details": {
-      "afp": {"name": "AFP", "configured": true, "priority": 1},
-      "newsapi": {"name": "NEWSAPI", "configured": true, "priority": 2}, 
-      "newsdata": {"name": "NEWSDATA", "configured": true, "priority": 3}
+      "afp": {"name": "AFP", "configured": true, "priority": 1}
     }
+  },
+  "database": {
+    "status": "connected",
+    "stats": {
+      "articles": 19,
+      "categories": 8,
+      "locations": 12,
+      "category_relationships": 25,
+      "location_relationships": 15,
+      "articles_last_24h": 19,
+      "top_categories": [
+        {"name": "social", "count": 8},
+        {"name": "human rights", "count": 6}
+      ],
+      "top_locations": [
+        {"name": "USA", "level": "country", "count": 6},
+        {"name": "Europe", "level": "region", "count": 3}
+      ],
+      "database_path": "C:\\Users\\User\\hopeshot\\backend\\hopeshot_news.db"
+    }
+  },
+  "ab_testing": {
+    "active_prompts": 3,
+    "prompt_versions": ["v1_comprehensive", "v2_precision", "v3_empathy_depth"]
   },
   "system": {
     "environment": "development",
     "python_version": "3.11+",
     "fastapi_status": "running",
-    "sentiment_analysis": "active",
-    "google_sheets": "connected"
+    "storage": "dual (database + sheets)"
   }
 }
 ```
@@ -345,12 +273,100 @@ Comprehensive system health check including Google Sheets integration status.
 ---
 
 ### **GET /api/test**
-Connection test endpoint for frontend verification.
+Connection test endpoint for frontend verification with database statistics.
 
 **Response**:
 ```json
 {
   "message": "Backend connection successful!",
   "data": {
-    "timestamp": "2024-08-21",
-    "
+    "timestamp": "2025-08-29",
+    "backend_status": "healthy",
+    "available_sources": ["afp"],
+    "database_stats": {
+      "articles": 19,
+      "categories": 8,
+      "locations": 12,
+      "category_relationships": 25,
+      "location_relationships": 15
+    }
+  }
+}
+```
+
+---
+
+## Database Integration Features
+
+### Auto-Creation Capabilities
+- **Categories**: Automatically created as Gemini discovers them in article analysis
+- **Geographic Locations**: Auto-created with hierarchical relationships (country → region → continent)
+- **Junction Relationships**: Many-to-many links established automatically
+
+### Multi-Location Support
+Articles can be linked to multiple locations for complex stories:
+```json
+"geographical_impact_location_names": ["USA", "Japan"],
+"geographical_impact_location_ids": [3, 8]
+```
+
+### Geographic Hierarchy Queries
+The junction table architecture enables sophisticated geographic filtering:
+- Articles about specific countries: Direct location match
+- Articles about regions: Includes all child countries
+- Articles about continents: Includes all child regions and countries
+
+### Deduplication Strategy
+- **Hard Check**: URL uniqueness enforced by database constraints
+- **Soft Check**: Title similarity detection (70% threshold) 
+- **Database-First**: Existing URLs checked before Gemini analysis to save API costs
+
+---
+
+## Authentication Systems
+- **NewsAPI**: Simple API key authentication
+- **NewsData**: API key with query parameters
+- **AFP**: OAuth2 password grant with automatic token management (5-hour expiry)
+- **Google Sheets**: Service account with JSON credentials file
+- **Gemini**: API key authentication with comprehensive rate limiting for multi-prompt processing
+- **SQLite**: Local file-based database with connection pooling
+
+---
+
+## Error Handling
+
+### Database Connection Management
+The system uses connection reuse patterns to prevent database locking during bulk operations:
+```json
+{
+  "database_inserted": 5,
+  "sheets_logged": true,
+  "sheets_error": null
+}
+```
+
+### Graceful Degradation
+Services fail independently without affecting the overall system:
+- Database failures don't prevent sheets logging
+- Sheets failures don't prevent database storage
+- Individual source failures don't affect other sources
+
+---
+
+## Performance Considerations
+
+### Rate Limiting with Multi-Prompt A/B Testing
+- **Gemini API**: 14 requests/minute, 900 requests/day with 2-minute batch spacing
+- **Multi-Prompt Overhead**: 3x analysis time for comparative data collection
+- **Database Operations**: Local SQLite with optimized junction table queries
+- **Connection Pooling**: Reused connections prevent lock contention
+
+### Scaling Implications
+- **Current Capacity**: ~24,000 articles/day with 3 active prompts
+- **Database Performance**: SQLite suitable for single-user applications
+- **Production Scaling**: Consider PostgreSQL for multi-user deployment
+
+---
+
+*Last updated: August 29, 2025*
+*API version: 0.9.0*

@@ -8,113 +8,135 @@ v1_comprehensive:
 
     REQUIRED FORMAT for each article:
     {{
-      "article_index": 0,
-      "sentiment": "positive/negative/neutral",
-      "confidence_score": 0.85,
+      "article_index": integer,
+      "sentiment": "positive" | "negative" | "neutral",
+      "confidence_score": float (0-1),
       "emotions": {{
-        "hope": 0.8,
-        "awe": 0.6,
-        "gratitude": 0.4,
-        "compassion": 0.7,
-        "relief": 0.3,
-        "joy": 0.5
+        "hope": float (0-1),
+        "awe": float (0-1),
+        "gratitude": float (0-1),
+        "compassion": float (0-1),
+        "relief": float (0-1),
+        "joy": float (0-1)
       }},
-      "categories": ["medical", "technology"],
-      "source_credibility": "high",
-      "fact_checkable_claims": "yes",
-      "evidence_quality": "strong",
-      "controversy_level": "low",
-      "solution_focused": "yes",
-      "age_appropriate": "all",
-      "truth_seeking": "no",
-      "geographic_scope": ["World"],
-      "country_focus": "None",
-      "local_focus": "None",
-      "geographic_relevance": "primary",
-      "overall_hopefulness": 0.75,
-      "reasoning": "Brief 5-word summary"
+      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "source_credibility": "high" | "medium" | "low",
+      "fact_checkable_claims": "yes" | "no",
+      "evidence_quality": "strong" | "moderate" | "weak",
+      "controversy_level": "low" | "medium" | "high",
+      "solution_focused": "yes" | "no",
+      "age_appropriate": "all" | "adults",
+      "truth_seeking": "yes" | "no",
+      "geographical_impact_level": "Global" | "Regional" | "Local",
+      "geographical_impact_location": ["Example: USA", "Canada", "Europe", "Asia", "Africa", "Global"],
+      "overall_hopefulness": float (0-1),
+      "reasoning": "Brief 15 words summary of key factors"
     }}
 
     EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
     CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
     REASONING: Maximum 5 words to minimize tokens
+    GEOGRAPHY: Level (Global, Regional, Local) and specific locations if applicable (World, continents or countries - can be multi choice)
 
-v2_emotion_focused:
-  name: "Emotion-Focused Analysis" 
+v2_precision:
+  name: "Precision & Schema Strictness"
   active: true
-  description: "Shorter prompt focused primarily on emotional scoring"
+  description: "Strict JSON schema compliance with clear examples"
   prompt: |
-    Analyze these {article_count} news articles for comprehensive emotional and contextual analysis. Return a JSON array with exactly {article_count} objects, one per article.
+    OBJECTIVE:
+    Analyze news for real-world progress and hope, not just financial or business success.
+    Positive sentiment must reflect stories that inspire optimism for humanity (e.g., medical breakthroughs, education access, environmental recovery, social equality).
+    Avoid treating stock market gains or corporate expansions as positive unless they directly improve people’s lives.
 
-    REQUIRED FORMAT for each article:
+    REQUIRED OUTPUT:
+    Return ONLY a JSON array with exactly {article_count} objects. No extra text.
+
+    JSON SCHEMA for each article:
     {{
-      "article_index": 0,
-      "sentiment": "positive/negative/neutral",
-      "confidence_score": 0.85,
+      "article_index": integer,
+      "sentiment": "positive" | "negative" | "neutral",
+      "confidence_score": float (0-1),
       "emotions": {{
-        "hope": 0.8,
-        "awe": 0.6,
-        "gratitude": 0.4,
-        "compassion": 0.7,
-        "relief": 0.3,
-        "joy": 0.5
+        "hope": float (0-1),
+        "awe": float (0-1),
+        "gratitude": float (0-1),
+        "compassion": float (0-1),
+        "relief": float (0-1),
+        "joy": float (0-1)
       }},
-      "categories": ["medical", "technology"],
-      "source_credibility": "high",
-      "fact_checkable_claims": "yes",
-      "evidence_quality": "strong",
-      "controversy_level": "low",
-      "solution_focused": "yes",
-      "age_appropriate": "all",
-      "truth_seeking": "no",
-      "geographic_scope": ["World"],
-      "country_focus": "None",
-      "local_focus": "None",
-      "geographic_relevance": "primary",
-      "overall_hopefulness": 0.75,
-      "reasoning": "Brief 5-word summary"
+      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "source_credibility": "high" | "medium" | "low",
+      "fact_checkable_claims": "yes" | "no",
+      "evidence_quality": "strong" | "moderate" | "weak",
+      "controversy_level": "low" | "medium" | "high",
+      "solution_focused": "yes" | "no",
+      "age_appropriate": "all" | "adults",
+      "truth_seeking": "yes" | "no",
+      "geographical_impact_level": "Global" | "Regional" | "Local",
+      "geographical_impact_location": ["Example: USA", "Canada", "Europe", "Asia", "Africa", "Global"],
+      "overall_hopefulness": float (0-1),
+      "reasoning": "Explain top emotion + source credibility in max 15 words"
     }}
 
-    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
-    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
-    REASONING: Maximum 5 words to minimize tokens
+    RULES:
+    - Emotions and overall_hopefulness: range 0.00–1.00.
+    - Reasoning MUST cover: strongest emotion + source credibility (e.g., “High hope, credible medical journal”).
+    - Categories: use only provided themes or close variants.
+    - Geography: never smaller than a country.
+    - Output must be valid JSON with no extra text.
 
-v3_test_prompt:
-  name: "Test Prompt - Inactive"
-  active: false
-  description: "Experimental prompt for testing new approaches"  
+    NOTES:
+    - Use strict schema compliance and concise reasoning.
+    - Do NOT add creative or extra details beyond the schema.
+
+v3_empathy_depth:
+  name: "Emotion & Subtle Hope Detection"
+  active: true
+  description: "Emphasize hope and optimism nuances"
   prompt: |
-    Analyze these {article_count} news articles for comprehensive emotional and contextual analysis. Return a JSON array with exactly {article_count} objects, one per article.
+    OBJECTIVE:
+    Identify articles that convey explicit or subtle hope and positive human impact.
+    Positive sentiment should prioritize stories about resilience, future progress, and long-term benefits (e.g., medical cures, climate action, equality).
+    Avoid financial metrics unless they clearly improve human well-being.
 
-    REQUIRED FORMAT for each article:
+    REQUIRED OUTPUT:
+    Return ONLY a JSON array with exactly {article_count} objects. No extra text.
+
+    JSON SCHEMA for each article:
     {{
-      "article_index": 0,
-      "sentiment": "positive/negative/neutral",
-      "confidence_score": 0.85,
+      "article_index": integer,
+      "sentiment": "positive" | "negative" | "neutral",
+      "confidence_score": float (0-1),
       "emotions": {{
-        "hope": 0.8,
-        "awe": 0.6,
-        "gratitude": 0.4,
-        "compassion": 0.7,
-        "relief": 0.3,
-        "joy": 0.5
+        "hope": float (0-1),
+        "awe": float (0-1),
+        "gratitude": float (0-1),
+        "compassion": float (0-1),
+        "relief": float (0-1),
+        "joy": float (0-1)
       }},
-      "categories": ["medical", "technology"],
-      "source_credibility": "high",
-      "fact_checkable_claims": "yes",
-      "evidence_quality": "strong",
-      "controversy_level": "low",
-      "solution_focused": "yes",
-      "age_appropriate": "all",
-      "truth_seeking": "no",
-      "geographic_scope": ["World"],
-      "country_focus": "None",
-      "local_focus": "None",
-      "geographic_relevance": "primary",
-      "overall_hopefulness": 0.75,
-      "reasoning": "Brief 5-word summary"
+      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "source_credibility": "high" | "medium" | "low",
+      "fact_checkable_claims": "yes" | "no",
+      "evidence_quality": "strong" | "moderate" | "weak",
+      "controversy_level": "low" | "medium" | "high",
+      "solution_focused": "yes" | "no",
+      "age_appropriate": "all" | "adults",
+      "truth_seeking": "yes" | "no",
+      "geographical_impact_level": "Global" | "Regional" | "Local",
+      "geographical_impact_location": ["Example: USA", "Canada", "Europe", "Asia", "Africa", "Global"],
+      "overall_hopefulness": float (0-1),
+      "reasoning": "Explain top emotion + source credibility in max 15 words"
     }}
 
-    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
-    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
-    REASONING: Maximum 5 words to minimize tokens
+    RULES:
+    - Emotions and overall_hopefulness: range 0.00–1.00.
+    - Detect hope signals like “potential cure,” “long-term benefit,” “policy change improving lives.”
+    - Reasoning MUST cover: strongest emotion + source credibility (e.g., “Strong hope, high credibility source”).
+    - Categories: use only provided themes or close variants.
+    - Geography: never smaller than a country.
+    - Output must be valid JSON with no extra text.
+
+    NOTES:
+    - Prioritize hope as the main indicator.
+    - Subtle hope examples: early trials success, first adoption of green tech, education milestones.

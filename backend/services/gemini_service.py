@@ -1,18 +1,19 @@
 import os
 import asyncio
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import google.generativeai as genai
 from dotenv import load_dotenv
 import yaml
 from pathlib import Path
 import json
+import sqlite3
 
 load_dotenv()
 
 class GeminiService:
     def __init__(self):
-        """Initialize Gemini 2.5 Flash-Lite service optimized for multi-prompt single requests"""
+        """Initialize Gemini 2.5 Flash-Lite service with multi-location junction table support"""
         self.api_key = os.getenv('GEMINI_API_KEY')
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
@@ -20,6 +21,9 @@ class GeminiService:
         # Configure Gemini 2.5 Flash-Lite
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        
+        # Database connection for location lookup
+        self.db_path = Path(__file__).parent.parent / 'hopeshot_news.db'
         
         # Rate limits
         self.requests_per_minute = 14
@@ -36,8 +40,8 @@ class GeminiService:
         self.last_request_time = None
         self.last_reset_date = datetime.now().date()
         
-        print(f"🚀 Gemini 2.5 Flash-Lite configured: Multi-prompt single request mode")
-        print(f"🔒 Safety limits: {self.requests_per_minute}/min, {self.requests_per_day}/day")
+        print(f"Gemini 2.5 Flash-Lite configured: Multi-location junction table support")
+        print(f"Safety limits: {self.requests_per_minute}/min, {self.requests_per_day}/day")
 
     def load_prompt_config(self) -> Dict[str, Any]:
         """Load prompt configurations from yaml file"""
@@ -55,9 +59,172 @@ class GeminiService:
             return active_prompts
             
         except Exception as e:
-            print(f"⚠️ Failed to load prompts.yaml: {e}")
+            print(f"Failed to load prompts.yaml: {e}")
             return {}
-    
+
+    def _get_or_create_location(self, location_name: str, level: str, parent_name: str = None) -> Optional[int]:
+        """
+        Get location ID from database, create if doesn't exist
+        Auto-creates geographic hierarchy as needed
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # First, try to find existing location
+            cursor.execute(
+                "SELECT id FROM locations WHERE name = ? AND level = ?", 
+                (location_name, level)
+            )
+            result = cursor.fetchone()
+            
+            if result:
+                location_id = result[0]
+                conn.close()
+                return location_id
+            
+            # Location doesn't exist, create it
+            parent_id = None
+            if parent_name and parent_name != location_name:
+                # Find or create parent location
+                parent_level = self._get_parent_level(level)
+                if parent_level:
+                    parent_id = self._get_or_create_location(parent_name, parent_level)
+            
+            # Insert new location
+            cursor.execute(
+                "INSERT INTO locations (name, level, parent_id) VALUES (?, ?, ?)",
+                (location_name, level, parent_id)
+            )
+            location_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            
+            print(f"Created new location: {location_name} ({level}) with ID {location_id}")
+            return location_id
+            
+        except Exception as e:
+            print(f"Error with location lookup: {e}")
+            return None
+
+    def _get_parent_level(self, current_level: str) -> Optional[str]:
+        """Get parent level in geographic hierarchy"""
+        hierarchy = {
+            'country': 'region',
+            'region': 'continent'
+        }
+        return hierarchy.get(current_level)
+
+    def _infer_geographic_hierarchy(self, location_name: str, level: str) -> str:
+        """
+        Infer parent location based on common geographic knowledge
+        Simple implementation for common countries/regions
+        """
+        # Common country to region mappings
+        country_to_region = {
+            'Vietnam': 'Southeast Asia',
+            'United States': 'North America', 
+            'USA': 'North America',
+            'France': 'Europe',
+            'Germany': 'Europe',
+            'United Kingdom': 'Europe',
+            'Japan': 'East Asia',
+            'China': 'East Asia',
+            'Brazil': 'South America',
+            'Nigeria': 'Africa',
+            'Australia': 'Oceania',
+            'India': 'South Asia',
+            'Canada': 'North America'
+        }
+        
+        region_to_continent = {
+            'Southeast Asia': 'Asia',
+            'East Asia': 'Asia',
+            'South Asia': 'Asia',
+            'North America': 'Americas',
+            'South America': 'Americas',
+            'Europe': 'Europe',
+            'Africa': 'Africa',
+            'Oceania': 'Oceania'
+        }
+        
+        if level == 'country':
+            return country_to_region.get(location_name, 'Unknown Region')
+        elif level == 'region':
+            return region_to_continent.get(location_name, 'Unknown Continent')
+        
+        return 'World'
+
+    def _process_geographic_analysis(self, analysis: Dict) -> Dict:
+        """
+        Process geographic fields and convert location names to database IDs
+        Handles both single locations and arrays for multi-country stories
+        """
+        # Extract new geographic fields
+        impact_level = analysis.get('geographical_impact_level', '')
+        impact_location = analysis.get('geographical_impact_location', '')
+        
+        # Skip processing if no geographic data
+        if not impact_level or not impact_location:
+            analysis['geographical_impact_level'] = 'Global'
+            analysis['geographical_impact_location_ids'] = []
+            analysis['geographical_impact_location_names'] = []
+            return analysis
+        
+        # Handle impact level as string or list
+        if isinstance(impact_level, list):
+            impact_level = impact_level[0] if impact_level else 'Global'
+        
+        # Convert impact level to standard format
+        level_mapping = {
+            'global': 'Global',
+            'regional': 'Regional', 
+            'national': 'National',
+            'local': 'Local'
+        }
+        impact_level_str = str(impact_level) if impact_level else 'Global'
+        standardized_level = level_mapping.get(impact_level_str.lower(), impact_level_str)
+        
+        # Handle locations as array or single value
+        if isinstance(impact_location, list):
+            location_names = impact_location
+        else:
+            location_names = [impact_location] if impact_location else []
+        
+        # Process each location and get database IDs
+        location_ids = []
+        processed_names = []
+        
+        for location_name in location_names:
+            location_str = str(location_name).strip() if location_name else ''
+            
+            if location_str and location_str.lower() not in ['world', 'global', 'none', '']:
+                # Determine database level from impact level
+                db_level = self._impact_level_to_db_level(standardized_level)
+                if db_level:
+                    parent_name = self._infer_geographic_hierarchy(location_str, db_level)
+                    location_id = self._get_or_create_location(location_str, db_level, parent_name)
+                    if location_id:
+                        location_ids.append(location_id)
+                        processed_names.append(location_str)
+        
+        # Update analysis with processed data
+        analysis['geographical_impact_level'] = standardized_level
+        analysis['geographical_impact_location_ids'] = location_ids  # Array of IDs for junction table
+        analysis['geographical_impact_location_names'] = processed_names  # Array of names for display
+        
+        return analysis
+
+    def _impact_level_to_db_level(self, impact_level: str) -> Optional[str]:
+        """Map geographical impact level to database location level"""
+        mapping = {
+            'National': 'country',
+            'Regional': 'region', 
+            'Local': 'country',  # Local impact usually within a country
+            'Global': None  # Global doesn't need specific location
+        }
+        return mapping.get(impact_level)
+
     def _reset_counters_if_needed(self):
         """Reset minute and daily counters when time periods change"""
         now = datetime.now()
@@ -166,8 +333,8 @@ Now analyze these articles using each approach below. Return your complete respo
             total_tokens_used = 0
             total_batches = 0
             
-            print(f"📝 Loaded {len(prompt_configs)} active prompts: {list(prompt_configs.keys())}")
-            print(f"🔄 Starting unified multi-prompt analysis: {len(prompt_configs)} prompts × {total_articles} articles in single request")
+            print(f"Loaded {len(prompt_configs)} active prompts: {list(prompt_configs.keys())}")
+            print(f"Starting unified multi-prompt analysis: {len(prompt_configs)} prompts × {total_articles} articles in single request")
             
             # Process articles in batches
             for batch_start in range(0, total_articles, self.max_articles_per_batch):
@@ -178,14 +345,14 @@ Now analyze these articles using each approach below. Return your complete respo
                 # Estimate tokens (more for combined prompt)
                 estimated_tokens = batch_size * 150 * len(prompt_configs) + 2000
                 
-                print(f"📦 Processing batch {total_batches}: {batch_size} articles with all {len(prompt_configs)} prompts")
+                print(f"Processing batch {total_batches}: {batch_size} articles with all {len(prompt_configs)} prompts")
                 
                 # Check rate limits
                 status = self.can_make_request(estimated_tokens)
                 if not status["can_proceed"]:
                     wait_time = status.get("seconds_until_next_allowed", 0)
                     if wait_time > 0:
-                        print(f"⏰ Waiting {wait_time:.0f} seconds for rate limits...")
+                        print(f"Waiting {wait_time:.0f} seconds for rate limits...")
                         await asyncio.sleep(wait_time + 1)
                 
                 # Build combined prompt for all versions
@@ -202,6 +369,11 @@ Now analyze these articles using each approach below. Return your complete respo
                 # Parse multi-prompt response
                 batch_results = self._parse_combined_response(response.text, prompt_configs, batch_size)
                 
+                # Process geographic data for all prompt results
+                for version_key, version_results in batch_results.items():
+                    for analysis in version_results:
+                        analysis = self._process_geographic_analysis(analysis)
+                
                 # Merge batch results into all_prompt_results
                 for version_key in prompt_configs.keys():
                     if version_key not in all_prompt_results:
@@ -216,7 +388,7 @@ Now analyze these articles using each approach below. Return your complete respo
                     all_prompt_results[version_key]["results"].extend(version_results)
                     all_prompt_results[version_key]["articles_analyzed"] = len(all_prompt_results[version_key]["results"])
                 
-                print(f"✅ Batch completed: {actual_tokens} tokens for all prompts combined")
+                print(f"Batch completed: {actual_tokens} tokens for all prompts combined")
             
             # Update token usage (distributed among prompts)
             tokens_per_prompt = total_tokens_used // len(prompt_configs) if prompt_configs else 0
@@ -233,10 +405,83 @@ Now analyze these articles using each approach below. Return your complete respo
             }
             
         except Exception as e:
+            print(f"Multi-prompt analysis error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {
                 "status": "error",
                 "message": f"Multi-prompt analysis failed: {str(e)}"
             }
+
+    def _process_geographic_analysis(self, analysis: Dict) -> Dict:
+        """
+        Process geographic fields and convert location names to database IDs
+        Handles both single locations and arrays for multi-country stories
+        """
+        # Extract new geographic fields with safe handling
+        impact_level = analysis.get('geographical_impact_level', '')
+        impact_location = analysis.get('geographical_impact_location', '')
+        
+        # Skip processing if no geographic data
+        if not impact_level or not impact_location:
+            analysis['geographical_impact_level'] = 'Global'
+            analysis['geographical_impact_location_ids'] = []
+            analysis['geographical_impact_location_names'] = []
+            return analysis
+        
+        # Handle impact level as string or list (safe conversion)
+        if isinstance(impact_level, list):
+            impact_level = impact_level[0] if impact_level else 'Global'
+        
+        # Convert impact level to standard format with safe string handling
+        level_mapping = {
+            'global': 'Global',
+            'regional': 'Regional', 
+            'national': 'National',
+            'local': 'Local'
+        }
+        
+        impact_level_str = str(impact_level).strip() if impact_level else 'Global'
+        standardized_level = level_mapping.get(impact_level_str.lower(), impact_level_str)
+        
+        # Handle locations as array or single value
+        if isinstance(impact_location, list):
+            location_names = [str(loc).strip() for loc in impact_location if loc]
+        else:
+            location_str = str(impact_location).strip() if impact_location else ''
+            location_names = [location_str] if location_str else []
+        
+        # Process each location and get database IDs
+        location_ids = []
+        processed_names = []
+        
+        for location_name in location_names:
+            if location_name and location_name.lower() not in ['world', 'global', 'none', '']:
+                # Determine database level from impact level
+                db_level = self._impact_level_to_db_level(standardized_level)
+                if db_level:
+                    parent_name = self._infer_geographic_hierarchy(location_name, db_level)
+                    location_id = self._get_or_create_location(location_name, db_level, parent_name)
+                    if location_id:
+                        location_ids.append(location_id)
+                        processed_names.append(location_name)
+        
+        # Update analysis with processed data (arrays for junction table support)
+        analysis['geographical_impact_level'] = standardized_level
+        analysis['geographical_impact_location_ids'] = location_ids  # Array of IDs for junction table
+        analysis['geographical_impact_location_names'] = processed_names  # Array of names for display
+        
+        return analysis
+
+    def _impact_level_to_db_level(self, impact_level: str) -> Optional[str]:
+        """Map geographical impact level to database location level"""
+        mapping = {
+            'National': 'country',
+            'Regional': 'region', 
+            'Local': 'country',  # Local impact usually within a country
+            'Global': None  # Global doesn't need specific location
+        }
+        return mapping.get(impact_level)
 
     def _parse_combined_response(self, response_text: str, prompt_configs: Dict, expected_count: int) -> Dict[str, List[Dict]]:
         """Parse Gemini's combined multi-prompt response"""
@@ -275,7 +520,7 @@ Now analyze these articles using each approach below. Return your complete respo
                 }
                 
         except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parsing failed: {e}")
+            print(f"JSON parsing failed: {e}")
             print(f"Raw response preview: {response_text[:500]}...")
             
             # Create fallback for all prompts
@@ -285,7 +530,7 @@ Now analyze these articles using each approach below. Return your complete respo
             }
     
     def _create_fallback_results(self, count: int) -> List[Dict]:
-        """Create fallback results when parsing fails"""
+        """Create fallback results with NEW geographic schema when parsing fails"""
         return [{
             "article_index": i,
             "sentiment": "neutral",
@@ -299,22 +544,22 @@ Now analyze these articles using each approach below. Return your complete respo
             "solution_focused": "unknown",
             "age_appropriate": "all",
             "truth_seeking": "no",
-            "geographic_scope": ["Unknown"],
-            "country_focus": "None",
-            "local_focus": "None",
-            "geographic_relevance": "minimal",
+            "geographical_impact_level": "Global",
+            "geographical_impact_location": ["World"],
             "overall_hopefulness": 0.0,
             "reasoning": "Parsing failed"
         } for i in range(count)]
 
     async def test_connection(self) -> Dict[str, Any]:
-        """Test Gemini connection"""
+        """Test Gemini connection with geographic processing"""
         try:
             response = self.model.generate_content("Respond with 'Connected' if working.")
             return {
                 "status": "success",
-                "message": "Gemini connected successfully",
-                "response": response.text.strip()
+                "message": "Gemini connected successfully with multi-location support",
+                "response": response.text.strip(),
+                "database_path": str(self.db_path),
+                "database_exists": self.db_path.exists()
             }
         except Exception as e:
             return {
@@ -328,5 +573,6 @@ Now analyze these articles using each approach below. Return your complete respo
         return {
             "requests_today": self.daily_requests,
             "requests_remaining_today": max(0, self.requests_per_day - self.daily_requests),
-            "can_make_request_now": self.can_make_request()["can_proceed"]
+            "can_make_request_now": self.can_make_request()["can_proceed"],
+            "schema_version": "geographic_v3_multi_location"
         }

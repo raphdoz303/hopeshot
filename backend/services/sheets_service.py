@@ -1,181 +1,271 @@
+# services/sheets_service.py
 import os
 import json
-from typing import Dict, List, Any
-from datetime import datetime
+from typing import List, Dict, Any, Optional
 from googleapiclient.discovery import build
-from google.oauth2.service_account import Credentials
+from google.oauth2 import service_account
 from dotenv import load_dotenv
-
-load_dotenv()
 
 class SheetsService:
     def __init__(self):
-        """Initialize Google Sheets service for Gemini analysis data"""
-        self.credentials_file = 'gsheetapi_credentials.json'
+        """Initialize Google Sheets service with service account authentication"""
+        load_dotenv()
+        self.credentials_file = os.getenv('GOOGLE_SHEETS_CREDENTIALS', 'gsheetapi_credentials.json')
         self.spreadsheet_id = os.getenv('GOOGLE_SHEETS_ID')
-        
-        if not os.path.exists(self.credentials_file):
-            raise FileNotFoundError(f"Google Sheets credentials not found: {self.credentials_file}")
+        self.service = None
         
         if not self.spreadsheet_id:
-            raise ValueError("GOOGLE_SHEETS_ID not found in environment variables")
+            raise ValueError("GOOGLE_SHEETS_ID environment variable not set")
         
-        # Initialize Google Sheets API
-        self.credentials = Credentials.from_service_account_file(
-            self.credentials_file,
-            scopes=['https://www.googleapis.com/auth/spreadsheets']
-        )
-        self.service = build('sheets', 'v4', credentials=self.credentials)
-        
-        print("📊 Google Sheets service initialized for unified Gemini analysis")
+        self._authenticate()
 
-    def _flatten_article_with_gemini_analysis(self, article: Dict, gemini_analysis: Dict = None) -> Dict:
+    def _authenticate(self):
+        """Authenticate with Google Sheets API using service account"""
+        try:
+            # Define the scopes
+            SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+            
+            # Load credentials from JSON file
+            credentials = service_account.Credentials.from_service_account_file(
+                self.credentials_file, 
+                scopes=SCOPES
+            )
+            
+            # Build the service
+            self.service = build('sheets', 'v4', credentials=credentials)
+            print("Google Sheets authenticated successfully")
+            
+        except Exception as e:
+            print(f"Google Sheets authentication failed: {e}")
+            raise
+
+    def flatten_article_for_sheets(self, article: Dict[str, Any], gemini_analysis: Dict[str, Any], 
+                                 prompt_version: str = None, prompt_name: str = None) -> List[Any]:
         """
-        Flatten article + Gemini analysis into 37-column spreadsheet row
-        Unified schema for all news with rich Gemini metadata
+        Convert article + analysis data into flat row for Google Sheets
+        Handles new geographic array format and 40-column schema
         """
-        # Basic article data (9 columns)
-        flattened = {
-            'timestamp': datetime.now().isoformat(),
-            'title': article.get('title', ''),
-            'description': article.get('description', ''),
-            'url': article.get('url', ''),
-            'author': article.get('author', ''),
-            'published_at': article.get('publishedAt', ''),
-            'api_source': article.get('api_source', ''),
-            'source_id': article.get('source', {}).get('id', ''),
-            'source_name': article.get('source', {}).get('name', ''),
-        }
         
-        if gemini_analysis:
-            # Gemini sentiment scores (5 columns)
-            flattened.update({
-                'uplift_score': gemini_analysis.get('overall_hopefulness', 0.0),
-                'sentiment_positive': 1.0 if gemini_analysis.get('sentiment') == 'positive' else 0.0,
-                'sentiment_negative': 1.0 if gemini_analysis.get('sentiment') == 'negative' else 0.0,
-                'sentiment_neutral': 1.0 if gemini_analysis.get('sentiment') == 'neutral' else 0.0,
-                'sentiment_confidence': gemini_analysis.get('confidence_score', 0.0),
-            })
-            
-            # Gemini emotions (6 columns)
-            emotions = gemini_analysis.get('emotions', {})
-            flattened.update({
-                'emotion_hope': emotions.get('hope', 0.0),
-                'emotion_awe': emotions.get('awe', 0.0),
-                'emotion_gratitude': emotions.get('gratitude', 0.0),
-                'emotion_compassion': emotions.get('compassion', 0.0),
-                'emotion_relief': emotions.get('relief', 0.0),
-                'emotion_joy': emotions.get('joy', 0.0),
-            })
-            
-            # Fact-checking metadata (3 columns)
-            flattened.update({
-                'source_credibility': gemini_analysis.get('source_credibility', ''),
-                'fact_checkable_claims': gemini_analysis.get('fact_checkable_claims', ''),
-                'evidence_quality': gemini_analysis.get('evidence_quality', ''),
-            })
-            
-            # Content analysis (4 columns)
-            flattened.update({
-                'controversy_level': gemini_analysis.get('controversy_level', ''),
-                'solution_focused': gemini_analysis.get('solution_focused', ''),
-                'age_appropriate': gemini_analysis.get('age_appropriate', ''),
-                'truth_seeking': gemini_analysis.get('truth_seeking', ''),
-            })
-            
-            # Geographic data (4 columns)
-            geographic_scope = gemini_analysis.get('geographic_scope', [])
-            flattened.update({
-                'geographic_scope': ', '.join(geographic_scope) if isinstance(geographic_scope, list) else str(geographic_scope),
-                'country_focus': gemini_analysis.get('country_focus', ''),
-                'local_focus': gemini_analysis.get('local_focus', ''),
-                'geographic_relevance': gemini_analysis.get('geographic_relevance', ''),
-            })
-            
-            # Enhanced analysis (3 columns)
-            categories = gemini_analysis.get('categories', [])
-            flattened.update({
-                'categories': ', '.join(categories) if isinstance(categories, list) else str(categories),
-                'reasoning': gemini_analysis.get('reasoning', ''),
-                'analyzer_type': 'gemini',
-            })
-            
-            # Future expansion (3 columns) - USE FIRST RESERVED COLUMN
-            flattened.update({
-                'reserved1': gemini_analysis.get('prompt_version', ''),  # Now tracks prompt version
-                'reserved2': gemini_analysis.get('prompt_name', ''),     # And prompt name for readability
-                'reserved3': ''
-            })
-            
+        # Extract emotions
+        emotions = gemini_analysis.get('emotions', {})
+        
+        # Handle geographic arrays - convert to string for sheets storage
+        geographical_impact_level = gemini_analysis.get('geographical_impact_level', '')
+        geographical_impact_location = gemini_analysis.get('geographical_impact_location_names', [])
+        
+        # Convert location array to comma-separated string
+        if isinstance(geographical_impact_location, list):
+            location_str = ', '.join(geographical_impact_location)
         else:
-            # Fill with empty values when no Gemini analysis available
-            empty_fields = [
-                'uplift_score', 'sentiment_positive', 'sentiment_negative', 'sentiment_neutral', 'sentiment_confidence',
-                'emotion_hope', 'emotion_awe', 'emotion_gratitude', 'emotion_compassion', 'emotion_relief', 'emotion_joy',
-                'source_credibility', 'fact_checkable_claims', 'evidence_quality',
-                'controversy_level', 'solution_focused', 'age_appropriate', 'truth_seeking',
-                'geographic_scope', 'country_focus', 'local_focus', 'geographic_relevance',
-                'categories', 'reasoning', 'analyzer_type'
-            ]
-            for field in empty_fields:
-                flattened[field] = ''
+            location_str = str(geographical_impact_location) if geographical_impact_location else ''
         
-        return flattened
+        # Build the flattened row (40 columns matching updated GSheets schema)
+        row = [
+            # Basic Article Data (12 columns)
+            article.get('publishedAt', ''),           # timestamp
+            article.get('title', ''),                 # title  
+            article.get('description', ''),           # description
+            article.get('url', ''),                   # Url_ID
+            article.get('author', ''),                # Author
+            article.get('publishedAt', ''),           # Published_at
+            article.get('language', 'en'),            # Language
+            article.get('news_type', 'article'),      # News_Type  
+            article.get('source_type', 'api'),        # Source_Type
+            article.get('source', {}).get('name', ''), # Source_Name
+            article.get('source', {}).get('id', ''),   # Source_ID
+            article.get('api_source', ''),            # Original_Source
+            
+            # Sentiment Analysis (5 columns)
+            gemini_analysis.get('overall_hopefulness', 0.0),  # uplift_score
+            1 if gemini_analysis.get('sentiment') == 'positive' else 0,  # sentiment_positive
+            1 if gemini_analysis.get('sentiment') == 'negative' else 0,  # sentiment_negative  
+            1 if gemini_analysis.get('sentiment') == 'neutral' else 0,   # sentiment_neutral
+            gemini_analysis.get('confidence_score', 0.0),    # sentiment_confidence
+            
+            # Target Emotions (6 columns)
+            emotions.get('hope', 0.0),                # emotion_hope
+            emotions.get('awe', 0.0),                 # emotion_awe
+            emotions.get('gratitude', 0.0),           # emotion_gratitude
+            emotions.get('compassion', 0.0),          # emotion_compassion
+            emotions.get('relief', 0.0),              # emotion_relief
+            emotions.get('joy', 0.0),                 # emotion_joy
+            
+            # Fact-checking Readiness (3 columns)
+            gemini_analysis.get('source_credibility', ''),   # source_credibility
+            gemini_analysis.get('fact_checkable_claims', ''), # fact_checkable_claims
+            gemini_analysis.get('evidence_quality', ''),     # evidence_quality
+            
+            # Content Analysis (4 columns)
+            gemini_analysis.get('controversy_level', ''),    # controversy_level
+            gemini_analysis.get('solution_focused', ''),     # solution_focused
+            gemini_analysis.get('age_appropriate', ''),      # age_appropriate
+            gemini_analysis.get('truth_seeking', ''),        # truth_seeking
+            
+            # Geographic Analysis (2 columns) - UPDATED FIELDS
+            geographical_impact_level,                # geographical_impact_level
+            location_str,                            # geographical_impact_location (converted from array)
+            
+            # Enhanced Metadata (3 columns)
+            self._format_categories(gemini_analysis.get('categories', [])), # categories
+            gemini_analysis.get('reasoning', ''),            # reasoning
+            gemini_analysis.get('analyzer_type', 'gemini'),  # analyzer_type
+            
+            # A/B Testing Tracking (3 columns)
+            prompt_version or '',                     # Prompt_ID
+            prompt_name or '',                        # Prompt_Name
+            
+            # Reserved fields for future expansion (3 columns)
+            '',                                       # reserved1
+            '',                                       # reserved2  
+            '',                                       # reserved3
+        ]
+        
+        return row
 
-    async def log_articles_with_gemini_analysis(self, articles_with_analysis: List[Dict]) -> Dict[str, Any]:
+    def _format_categories(self, categories: List[str]) -> str:
+        """Format categories list as JSON string for storage"""
+        if isinstance(categories, list):
+            return json.dumps(categories)
+        elif isinstance(categories, str):
+            return categories
+        else:
+            return '[]'
+
+    async def log_articles_with_gemini_analysis(self, articles_with_analysis: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Log articles with their Gemini analysis to Google Sheets
-        articles_with_analysis: List of {article: {...}, gemini_analysis: {...}}
+        Expected format: [{"article": {...}, "gemini_analysis": {...}}, ...]
+        This is the method main.py is calling
         """
         try:
             if not articles_with_analysis:
                 return {"status": "success", "logged_count": 0, "message": "No articles to log"}
             
-            # Flatten all articles into spreadsheet rows
+            # Convert to rows format
             rows = []
             for item in articles_with_analysis:
                 article = item.get('article', {})
                 analysis = item.get('gemini_analysis', {})
-                flattened = self._flatten_article_with_gemini_analysis(article, analysis)
-                # Convert to list in column order
-                row = list(flattened.values())
+                
+                # Extract prompt info from analysis
+                prompt_version = analysis.get('prompt_version', '')
+                prompt_name = analysis.get('prompt_name', '')
+                
+                # Flatten to sheet row
+                row = self.flatten_article_for_sheets(article, analysis, prompt_version, prompt_name)
                 rows.append(row)
             
             # Append to sheet
-            sheet_range = 'Sheet1!A:AK'  # 37 columns (A to AK)
-            body = {'values': rows}
+            sheet_range = 'Sheet1!A:AN'  # 40 columns (A to AN)
+            body = {
+                'values': rows,
+                'majorDimension': 'ROWS'
+            }
             
             result = self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,
                 range=sheet_range,
-                valueInputOption='RAW',
+                valueInputOption='USER_ENTERED',
+                insertDataOption='INSERT_ROWS',
                 body=body
             ).execute()
             
-            logged_count = len(rows)
-            print(f"📊 Logged {logged_count} articles with Gemini analysis to Google Sheets")
+            updates = result.get('updates', {})
+            updated_rows = updates.get('updatedRows', 0)
+            
+            print(f"Logged {updated_rows} articles to Google Sheets")
             
             return {
                 "status": "success",
-                "logged_count": logged_count,
+                "logged_count": updated_rows,
                 "total_articles": len(articles_with_analysis),
                 "spreadsheet_id": self.spreadsheet_id
             }
             
         except Exception as e:
-            print(f"❌ Google Sheets logging failed: {str(e)}")
+            print(f"Error logging to Google Sheets: {str(e)}")
             return {
                 "status": "error",
                 "message": f"Failed to log to Google Sheets: {str(e)}",
                 "logged_count": 0
             }
 
+    def log_articles_batch(self, articles: List[Dict[str, Any]], prompt_version: str = None, prompt_name: str = None) -> Dict[str, Any]:
+        """
+        Legacy method - now calls the main logging method
+        """
+        # Convert to expected format
+        articles_with_analysis = []
+        for article in articles:
+            # Assume gemini_analysis is attached to article
+            analysis = article.get('gemini_analysis', {})
+            articles_with_analysis.append({
+                'article': article,
+                'gemini_analysis': analysis
+            })
+        
+        import asyncio
+        return asyncio.run(self.log_articles_with_gemini_analysis(articles_with_analysis))
+
+    def get_existing_urls(self) -> set:
+        """
+        Get all existing URLs from Google Sheets for deduplication
+        Returns set of URLs that already exist
+        """
+        try:
+            # Read the URL column (column D - Url_ID)
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range="Sheet1!D:D"
+            ).execute()
+            
+            values = result.get('values', [])
+            
+            # Extract URLs, skip header row
+            existing_urls = set()
+            for row in values[1:]:  # Skip header
+                if row and row[0]:  # Check if URL exists and is not empty
+                    existing_urls.add(row[0])
+            
+            print(f"Found {len(existing_urls)} existing URLs in sheets")
+            return existing_urls
+            
+        except Exception as e:
+            print(f"Error reading existing URLs: {e}")
+            return set()
+
+    def test_connection(self) -> Dict[str, Any]:
+        """Test Google Sheets connection and return status"""
+        try:
+            # Try to get spreadsheet metadata
+            sheet_metadata = self.service.spreadsheets().get(
+                spreadsheetId=self.spreadsheet_id
+            ).execute()
+            
+            title = sheet_metadata.get('properties', {}).get('title', 'Unknown')
+            sheets = sheet_metadata.get('sheets', [])
+            sheet_count = len(sheets)
+            
+            return {
+                "success": True,
+                "message": f"Connected to '{title}' with {sheet_count} sheets",
+                "spreadsheet_title": title,
+                "sheet_count": sheet_count,
+                "schema_version": "v3.0_multi_location"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Connection failed: {str(e)}"
+            }
+
     def create_header_row(self) -> Dict[str, Any]:
-        """Create the header row for the unified Gemini analysis sheet"""
+        """Create the header row for the unified multi-location analysis sheet"""
         headers = [
-            # Basic article data (9)
-            'timestamp', 'title', 'description', 'url', 'author', 'published_at', 
-            'api_source', 'source_id', 'source_name',
+            # Basic article data (12)
+            'timestamp', 'title', 'description', 'url_id', 'author', 'published_at', 
+            'language', 'news_type', 'source_type', 'source_name', 'source_id', 'original_source',
             
             # Sentiment scores (5)
             'uplift_score', 'sentiment_positive', 'sentiment_negative', 'sentiment_neutral', 'sentiment_confidence',
@@ -189,11 +279,14 @@ class SheetsService:
             # Content analysis (4)
             'controversy_level', 'solution_focused', 'age_appropriate', 'truth_seeking',
             
-            # Geographic (4)
-            'geographic_scope', 'country_focus', 'local_focus', 'geographic_relevance',
+            # Geographic (2) - Updated schema
+            'geographical_impact_level', 'geographical_impact_location',
             
             # Enhanced analysis (3)
             'categories', 'reasoning', 'analyzer_type',
+            
+            # A/B Testing (2)
+            'prompt_id', 'prompt_name',
             
             # Future expansion (3)
             'reserved1', 'reserved2', 'reserved3'
@@ -203,13 +296,13 @@ class SheetsService:
             # Clear existing content and add headers
             self.service.spreadsheets().values().clear(
                 spreadsheetId=self.spreadsheet_id,
-                range='Sheet1!A:AZ'
+                range='Sheet1!A:AN'
             ).execute()
             
             # Add header row
             self.service.spreadsheets().values().update(
                 spreadsheetId=self.spreadsheet_id,
-                range='Sheet1!A1:AN1',  # 40 columns for future expansion
+                range='Sheet1!A1:AN1',  # 40 columns
                 valueInputOption='RAW',
                 body={'values': [headers]}
             ).execute()

@@ -1,6 +1,6 @@
 # HopeShot Setup Guide
 
-Complete guide to get HopeShot running on your machine with Google Gemini AI integration and multi-prompt A/B testing framework.
+Complete guide to get HopeShot running with SQLite database, Google Gemini AI integration, and multi-prompt A/B testing framework.
 
 ---
 
@@ -10,6 +10,7 @@ Complete guide to get HopeShot running on your machine with Google Gemini AI int
 - **Git** (for version control)
 - **Google Cloud account** (for Gemini API access)
 - **Google account** (for Google Sheets integration)
+- **SQLite** (built into Python - no separate installation needed)
 
 ---
 
@@ -28,12 +29,14 @@ cd backend
 # Install Python dependencies
 py -m pip install -r requirements.txt
 
-# Note: First run will download ML models (~500MB) for legacy transformers
-# Test Gemini integration
-py -c "import google.generativeai as genai; print('✅ Gemini library ready')"
+# Create SQLite database
+py database_setup.py
 
-# Test YAML configuration
-py -c "import yaml; print('✅ YAML library ready')"
+# Migrate to multi-location support (if needed)
+py database_migration.py
+
+# Test database connection
+py -c "from services.database_service import DatabaseService; db = DatabaseService(); print(db.test_connection())"
 
 # Start development server
 py -m uvicorn main:app --reload --port 8000
@@ -49,7 +52,7 @@ Backend will be available at `http://localhost:8000`
 - `google-generativeai>=0.3.0` - Google Gemini API client
 - `google-api-python-client>=2.0.0` - Google Sheets API access
 - `google-auth>=2.0.0` - Google authentication libraries
-- `pyyaml>=6.0.0` - **NEW**: YAML configuration file parsing for A/B testing
+- `pyyaml>=6.0.0` - YAML configuration file parsing for A/B testing
 - `transformers>=4.21.0` - Hugging Face models (backup/legacy)
 - `torch>=1.13.0` - PyTorch neural network backend (backup)
 - `nltk>=3.8.0` - VADER sentiment analyzer (backup)
@@ -68,6 +71,40 @@ npm run dev
 ```
 
 Frontend will be available at `http://localhost:3000`
+
+---
+
+## Database Setup
+
+### SQLite Database Creation
+The database is automatically created when you run `database_setup.py`. This creates:
+
+**Tables Created**:
+- `articles` - Main article storage (40 columns matching Google Sheets schema)
+- `categories` - Category definitions with metadata (name, description, color, emoji)
+- `locations` - Hierarchical geographic data (country → region → continent)
+- `article_categories` - Many-to-many junction table for article-category relationships
+- `article_locations` - Many-to-many junction table for article-location relationships
+
+**Database Features**:
+- Auto-incrementing primary keys
+- Foreign key constraints for data integrity
+- Performance indexes on key lookup fields
+- Junction tables for many-to-many relationships
+
+### Viewing Database Content
+**Option 1: DB Browser for SQLite (Recommended)**
+1. Download from https://sqlitebrowser.org/
+2. Open `backend/hopeshot_news.db`
+3. Browse tables, run SQL queries, view relationships
+
+**Option 2: API Endpoints**
+- `http://localhost:8000/health` - Database statistics and top categories/locations
+- `http://localhost:8000/api/sources` - Source info with database stats
+
+**Option 3: VS Code Extension**
+- Install "SQLite Viewer" extension
+- Right-click `.db` file → "Open with SQLite Viewer"
 
 ---
 
@@ -138,34 +175,11 @@ Frontend will be available at `http://localhost:3000`
    AFP_PASSWORD=your_password
    ```
 
-### Source Configuration Setup
-
-1. **Configure News Sources**
-   ```bash
-   # Edit backend/sources.yaml to enable/disable sources
-   # Set active: true/false for each source
-   # Adjust quality_score and daily_limit as needed
-   ```
-
-2. **AFP Specific Configuration**
-   - AFP uses "inspiring" genre filter (highly curated, ~4-10 articles/week)
-   - To get more articles, consider:
-     - Extending date range in `afp_client.py`: `"from": "now-30d"`
-     - Removing genre filter (will require own quality filtering)
-     - Enabling additional sources in `sources.yaml`
-
-### Performance Optimization Note
-
-The system now uses optimized multi-prompt analysis:
-- All prompts analyzed in single request (~10 seconds total)
-- 2-minute spacing only between different article batches
-- To adjust prompt count, edit `prompts.yaml` and set `active: true/false`
-
 ---
 
-## A/B Testing Configuration
+## Configuration Files
 
-### Create prompts.yaml File
+### A/B Testing Configuration
 Create `backend/prompts.yaml` with your prompt configurations:
 
 ```yaml
@@ -179,159 +193,136 @@ v1_comprehensive:
 
     REQUIRED FORMAT for each article:
     {{
-      "article_index": 0,
-      "sentiment": "positive/negative/neutral",
-      "confidence_score": 0.85,
+      "article_index": integer,
+      "sentiment": "positive" | "negative" | "neutral",
+      "confidence_score": float (0-1),
       "emotions": {{
-        "hope": 0.8,
-        "awe": 0.6,
-        "gratitude": 0.4,
-        "compassion": 0.7,
-        "relief": 0.3,
-        "joy": 0.5
+        "hope": float (0-1),
+        "awe": float (0-1),
+        "gratitude": float (0-1),
+        "compassion": float (0-1),
+        "relief": float (0-1),
+        "joy": float (0-1)
       }},
-      "categories": ["medical", "technology"],
-      "source_credibility": "high",
-      "fact_checkable_claims": "yes",
-      "evidence_quality": "strong",
-      "controversy_level": "low",
-      "solution_focused": "yes",
-      "age_appropriate": "all",
-      "truth_seeking": "no",
-      "geographic_scope": ["World"],
-      "country_focus": "None",
-      "local_focus": "None",
-      "geographic_relevance": "primary",
-      "overall_hopefulness": 0.75,
-      "reasoning": "Brief 5-word summary"
+      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "source_credibility": "high" | "medium" | "low",
+      "fact_checkable_claims": "yes" | "no",
+      "evidence_quality": "strong" | "moderate" | "weak",
+      "controversy_level": "low" | "medium" | "high",
+      "solution_focused": "yes" | "no",
+      "age_appropriate": "all" | "adults",
+      "truth_seeking": "yes" | "no",
+      "geographical_impact_level": "Global" | "Regional" | "National" | "Local",
+      "geographical_impact_location": ["Country names like USA, Vietnam, France"],
+      "overall_hopefulness": float (0-1),
+      "reasoning": "Explain top emotion + source credibility in max 15 words"
     }}
 
-    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
-    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
-    REASONING: Maximum 5 words to minimize tokens
-
-v2_emotion_focused:
-  name: "Emotion-Focused Analysis" 
+v2_precision:
+  name: "Precision Analysis"
   active: true
-  description: "Shorter prompt focused primarily on emotional scoring"
+  description: "Focused on accuracy and fact-checking"
   prompt: |
-    Analyze these {article_count} news articles focusing on emotional impact. Return JSON array with {article_count} objects.
+    [Similar format but emphasizing precision over emotion detection]
 
-    Focus on these emotions (0.0-1.0): hope, awe, gratitude, compassion, relief, joy
-    
-    Required format per article:
-    {{
-      "article_index": 0,
-      "sentiment": "positive/negative/neutral",
-      "confidence_score": 0.85,
-      "emotions": {{
-        "hope": 0.8,
-        "awe": 0.6,
-        "gratitude": 0.4,
-        "compassion": 0.7,
-        "relief": 0.3,
-        "joy": 0.5
-      }},
-      "overall_hopefulness": 0.75,
-      "reasoning": "Brief summary"
-    }}
+v3_empathy_depth:
+  name: "Empathy-Focused Analysis"
+  active: true
+  description: "Deep emotional analysis with empathy focus"
+  prompt: |
+    [Similar format but emphasizing emotional depth and human impact]
+```
 
-v3_experimental:
-  name: "Experimental Prompt"
+### Source Configuration
+The `backend/sources.yaml` file controls which news sources are active:
+
+```yaml
+afp:
+  name: "Agence France-Presse"
+  active: true
+  configured: true
+  priority: 1
+  quality_score: 10
+  daily_limit: 20
+
+newsapi:
+  name: "NewsAPI.org"
   active: false
-  description: "Test prompt for experimentation"  
-  prompt: |
-    [Your experimental prompt here - modify as needed for testing]
+  configured: true
+  priority: 2
+  quality_score: 5
+  daily_limit: 10
 ```
 
 ---
 
 ## Verification
 
-### Test Backend Endpoints
-Visit these URLs in your browser:
-- `http://localhost:8000/` - Root endpoint (should show v0.7.0)
-- `http://localhost:8000/health` - System health check with A/B testing status
-- `http://localhost:8000/api/sources` - Source configuration with multi-prompt information
-- `http://localhost:8000/api/sources/test` - Source connectivity including Gemini A/B testing
-
-### Test A/B Testing Framework
+### Test Database Setup
 ```bash
-# Test YAML configuration loading
 cd backend
+
+# Test database creation
+py database_setup.py
+
+# Test database service
 py -c "
+from services.database_service import DatabaseService
+db = DatabaseService()
+result = db.test_connection()
+print('Database:', result['status'])
+print('Tables:', result['stats'])
+"
+```
+
+### Test All Services
+```bash
+# Test Gemini with geographic processing
+py -c "
+import asyncio
 from services.gemini_service import GeminiService
-service = GeminiService()
-prompts = service.load_prompt_config()
-print('Active prompts:', list(prompts.keys()))
-for version, config in prompts.items():
-    print(f'- {version}: {config.get(\"name\", \"Unknown\")}')
+
+async def test():
+    gemini = GeminiService()
+    result = await gemini.test_connection()
+    print('Gemini:', result['status'])
+    print('Database exists:', result['database_exists'])
+
+asyncio.run(test())
 "
 
-# Test Gemini API connection
-py test_gemini.py
-
-# Test multi-prompt analysis functionality  
-py test_analysis.py
-
-# Test complete pipeline with A/B testing
-py test_full_pipeline.py
-
-# Test Google Sheets integration with comparative data
-py test_sheets_gemini.py
+# Test Google Sheets
+py -c "
+from services.sheets_service import SheetsService
+sheets = SheetsService()
+result = sheets.test_connection()
+print('Sheets:', result['success'])
+"
 ```
 
-### Test Frontend
-- `http://localhost:3000/` - Homepage
-- `http://localhost:3000/test` - API testing interface with multi-prompt analysis results
-
-### Test Complete Multi-Prompt System
+### Test Complete System
 ```bash
-# Test all integrations including A/B testing
-curl http://localhost:8000/api/sources/test
+# Start backend server
+py -m uvicorn main:app --reload --port 8000
 
-# Test unified news with multi-prompt analysis (will take 60-120 seconds for 2 prompts)
-curl "http://localhost:8000/api/news?pageSize=3" 
+# In another terminal, test endpoints
+curl "http://localhost:8000/health"
+curl "http://localhost:8000/api/sources/test"
 
-# Check Google Sheets for comparative data (should see 6 rows: 3 articles × 2 prompts)
+# Test complete pipeline with dual storage
+curl "http://localhost:8000/api/news?pageSize=2"
 ```
 
-**Expected Results**:
-- All news sources should show success
-- Gemini should show "Multi-prompt A/B testing framework ready"
-- Articles should include comprehensive `gemini_analysis` field
-- Google Sheets should receive multiple rows per article with prompt version tracking
-- Response should show `prompt_versions: ["v1_comprehensive", "v2_emotion_focused"]`
-- `sheets_logged: true` and `total_logged` should equal articles × active prompts
-
----
-
-## A/B Testing Usage
-
-### Basic Usage
-1. **Edit prompts.yaml** - Modify prompt text, add new versions, or activate/deactivate prompts
-2. **Run API calls** - Each article will be analyzed by all active prompts
-3. **Review Google Sheets** - See side-by-side comparison of different prompt analyses for identical articles
-4. **Iterate and improve** - Refine prompts based on quality comparison
-
-### Systematic Optimization Workflow
-1. **Establish baseline** - Start with one proven prompt as baseline
-2. **Create variations** - Add experimental prompts with `active: true`
-3. **Collect comparative data** - Run `/api/news` with diverse articles
-4. **Evaluate quality** - Review Google Sheets for analysis quality comparison
-5. **Select best prompts** - Identify highest-performing prompts for production use
-
-### Configuration Management
-```bash
-# Activate a new prompt for testing
-# Edit prompts.yaml: change "active: false" to "active: true"
-
-# Test specific prompt combinations
-# Deactivate prompts you don't want to test by setting "active: false"
-
-# Add new experimental prompts
-# Copy existing prompt structure and modify content
-```
+### Expected Results
+- Database should show articles, categories, and locations being created
+- Google Sheets should receive multiple rows per article (one per active prompt)
+- Terminal should show auto-creation messages:
+  ```
+  Created new location: USA (country) with ID 3
+  Created new category: social (ID: 1)
+  Inserted article: [Title]... (ID: 15)
+  Logged 6 articles to Google Sheets
+  ```
 
 ---
 
@@ -339,7 +330,7 @@ curl "http://localhost:8000/api/news?pageSize=3"
 
 ### Starting Development Session
 ```bash
-# Terminal 1: Backend with A/B testing 
+# Terminal 1: Backend with database support
 cd backend
 py -m uvicorn main:app --reload --port 8000
 
@@ -348,139 +339,149 @@ cd frontend
 npm run dev
 ```
 
-### Making Changes to Prompts
-1. Edit `backend/prompts.yaml` file
-2. No server restart required - configuration loads dynamically
-3. Test changes with new API calls
-4. Check Google Sheets for comparative analysis results
-5. Monitor token usage and processing time
+### Database Management
+```bash
+# View database statistics
+curl "http://localhost:8000/health"
 
-### Making Code Changes
-1. Edit code files
-2. Servers automatically restart (hot reload enabled)
-3. Test changes in browser
-4. Verify A/B testing functionality with test commands
-5. Commit when feature is complete
+# Open database in DB Browser for SQLite
+# File → Open Database → backend/hopeshot_news.db
+
+# Run database migrations (when schema changes)
+py database_migration.py
+```
+
+### A/B Testing Workflow
+1. Edit `backend/prompts.yaml` to modify prompts or activate/deactivate versions
+2. Run API calls to collect comparative data
+3. Review Google Sheets for side-by-side prompt performance analysis
+4. Check database for clean application data (first prompt only)
+5. Iterate prompts based on quality comparison
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### Common Database Issues
 
-**YAML Configuration Issues**:
-- Verify `prompts.yaml` is in the `backend/` directory
-- Check YAML syntax with online validator if getting parsing errors
-- Ensure proper indentation (spaces, not tabs)
-- Verify `active: true` for prompts you want to test
+**Database Locked Error**:
+- Close DB Browser for SQLite if open
+- Restart uvicorn server
+- Check for multiple simultaneous API requests
 
-**Multi-Prompt Processing Slow**:
-- Expected behavior: 2-3x slower than single prompt
-- Each active prompt processes all articles sequentially
-- 2-minute intervals between batches for rate limiting
-- Disable unused prompts to improve performance
+**Categories Not Created**:
+- Verify categories field in Gemini response is a list: `["social", "sport"]`
+- Check terminal for "Created new category" messages
+- Ensure connection reuse pattern is implemented
 
-**Google Sheets Missing Comparative Data**:
-- Check that multiple rows appear per article (one per active prompt)
-- Verify `reserved1` and `reserved2` columns show prompt versions and names
-- Ensure service account has edit permissions
-- Check for sheets logging errors in API response
+**Locations Not Auto-Created**:
+- Check geographic fields in prompts.yaml match new schema
+- Verify `geographical_impact_location` returns arrays: `["USA", "Japan"]`
+- Monitor terminal for location creation messages
 
-**Prompt Not Loading**:
-- Verify prompt is set to `active: true` in YAML
-- Check terminal output for YAML loading messages
-- Test prompt loading with: `py -c "from services.gemini_service import GeminiService; print(GeminiService().load_prompt_config())"`
+### Performance Issues
 
-**Rate Limiting Issues**:
-- Multi-prompt analysis uses 2x+ API calls
-- Wait times are normal and protect against quota violations
-- Monitor usage with test scripts
-- Consider reducing number of active prompts for faster testing
+**Slow Multi-Prompt Analysis**:
+- Expected: 2-3x slower than single prompt due to comprehensive analysis
+- Reduce active prompts in prompts.yaml for faster testing
+- 2-minute intervals between batches are normal for rate limiting
 
-### A/B Testing Verification
+**Database Query Performance**:
+- Junction table queries are indexed for performance
+- Consider LIMIT clauses for large result sets
+- SQLite handles thousands of articles efficiently
 
-**Check Prompt Loading**:
-```bash
-py -c "
-from services.gemini_service import GeminiService
-service = GeminiService()
-prompts = service.load_prompt_config()
-print('✅ Loaded prompts:', list(prompts.keys()))
-"
-```
+### A/B Testing Issues
 
-**Verify Comparative Data in Sheets**:
-- Look for multiple rows per article
-- Check `reserved1` column for prompt versions (e.g., "v1_comprehensive")
-- Check `reserved2` column for prompt names (e.g., "Current Comprehensive Analysis")
-- Same article should have different analysis results from different prompts
+**Prompts Not Loading**:
+- Verify prompts.yaml syntax with online YAML validator
+- Check `active: true` for prompts you want to test
+- Monitor terminal for "Loaded X active prompts" messages
 
-**Monitor Multi-Prompt Processing**:
-```bash
-# Watch terminal output during API calls for:
-# - "📝 Loaded X active prompts: [list]"
-# - "🔄 Starting multi-prompt analysis: X prompts × Y articles"
-# - "📋 Analyzing with [prompt_version]: [prompt_name]"
-# - "✅ [prompt_version] completed: X articles, Y tokens"
-```
-
-### Performance Optimization
-
-**Prompt Efficiency**:
-- Shorter prompts use fewer tokens and process faster
-- Remove unnecessary fields from prompts you're testing
-- Focus on specific aspects you want to optimize
-
-**Active Prompt Management**:
-- Only keep prompts active that you're actively comparing
-- Disable experimental prompts when not testing: `active: false`
-- Use 2-3 active prompts maximum for regular development
-
-**Batch Size Optimization**:
-- Smaller `pageSize` values process faster for testing
-- Use `pageSize=1` for rapid prompt iteration
-- Use larger batches for comprehensive data collection
-
-### Getting Help
-- Check browser developer console for frontend errors
-- Check terminal output for backend errors and A/B testing logs
-- Use the test page at `/test` to isolate API issues
-- Monitor Google Sheets for comparative data verification
-- Check Gemini usage stats if experiencing rate limits
-- Verify YAML syntax if prompts aren't loading
+**Inconsistent Gemini Results**:
+- Known issue: Score differences between single vs batch analysis
+- Categories often default to "social" regardless of content type
+- Geographic responses need validation improvements
 
 ---
 
 ## Production Considerations
 
 ### Environment Variables
-Ensure all required environment variables are set:
+Ensure all required environment variables are set in `backend/.env`:
 - `GEMINI_API_KEY` - Google Gemini API access
 - `GOOGLE_SHEETS_ID` - Target spreadsheet ID  
-- `NEWS_API_KEY` - NewsAPI.org access
-- `NEWSDATA_API_KEY` - NewsData.io access
-- `AFP_CLIENT_ID`, `AFP_CLIENT_SECRET`, `AFP_USERNAME`, `AFP_PASSWORD` - AFP access
+- `NEWS_API_KEY` - NewsAPI.org access (optional)
+- `NEWSDATA_API_KEY` - NewsData.io access (optional)
+- `AFP_CLIENT_ID`, `AFP_CLIENT_SECRET`, `AFP_USERNAME`, `AFP_PASSWORD` - AFP access (optional)
 
 ### Security
 - Keep `gsheetapi_credentials.json` secure and never commit to version control
-- Keep `prompts.yaml` in version control for collaborative prompt development
+- Keep `hopeshot_news.db` in .gitignore for data protection
+- Keep configuration files (`prompts.yaml`, `sources.yaml`) in version control
 - Rotate API keys periodically
-- Monitor usage to prevent quota violations with multi-prompt processing
 
-### Scaling for Production
-- **Current capacity**: ~24,000 articles/day with 2 active prompts
-- **A/B testing overhead**: 2-3x processing time for comparative analysis
-- **Production strategy**: Use A/B testing to identify best prompt, then single-prompt for scale
-- **Data collection**: Multi-prompt comparative data enables systematic optimization
+### Database Management
+- **Current Setup**: SQLite suitable for development and single-user applications
+- **Backup Strategy**: Database file can be copied for backups
+- **Migration Path**: PostgreSQL recommended for multi-user production deployment
+- **Connection Management**: Uses connection reuse pattern to prevent locks
 
-### A/B Testing Best Practices
-- **Start with baseline**: Keep one proven prompt as control group
-- **Systematic changes**: Modify one aspect at a time for clear comparison
-- **Sufficient data**: Test prompts on diverse article types and topics
-- **Quality criteria**: Develop consistent evaluation standards
-- **Documentation**: Track prompt changes and performance insights
+### Scaling Considerations
+- **Current Capacity**: ~24,000 articles/day with 3 active prompts and dual storage
+- **Database Performance**: SQLite efficient for current scale
+- **Geographic Hierarchy**: Simple inference mapping (consider external APIs for production)
+- **A/B Testing Overhead**: 3x analysis time acceptable for research phase
 
 ---
 
-*Last updated: August 25, 2025*  
-*Ready for multi-prompt A/B testing and systematic prompt optimization!*
+## Database Features
+
+### Auto-Creation System
+The system automatically creates database entries as new content is discovered:
+
+**Categories**: When Gemini identifies new categories, they're automatically added to the categories table
+**Geographic Locations**: New countries/regions auto-created with proper hierarchical relationships
+**Junction Relationships**: Articles automatically linked to relevant categories and locations
+
+### Multi-Location Support
+Articles can reference multiple locations for complex stories:
+- USA-Japan collaboration → Both countries linked to article
+- European policy → Multiple countries linked via region hierarchy
+- Junction table queries enable sophisticated geographic filtering
+
+### Geographic Hierarchy Example
+```
+Vietnam (discovered in article)
+  ↓
+Auto-creates: Vietnam (country) → Southeast Asia (region) → Asia (continent)
+  ↓
+Enables queries: "Articles about Vietnam", "Articles about Southeast Asia", "Articles about Asia"
+```
+
+---
+
+## Known Issues & Future Improvements
+
+### Immediate Issues to Address
+- **Sheets logging**: May require debugging connection issues
+- **Scoring inconsistencies**: Different results for single vs batch analysis
+- **Category classification**: Prompts need refinement for accurate categorization
+- **Timestamp handling**: Currently uses published_at instead of creation time
+
+### Suggested Improvements
+- **Geographic validation**: Pre-populate common countries for better accuracy
+- **Prompt optimization**: Refine prompts for better sports/politics/health classification
+- **RSS integration**: Add RSS sources to reduce AFP dependency
+- **Duplicate detection**: Implement database-based deduplication for production
+
+### Performance Optimizations
+- **Connection pooling**: For concurrent user support
+- **Database indexing**: Additional indexes for complex geographic queries
+- **Prompt efficiency**: Shorter prompts for faster processing
+- **Batch size tuning**: Optimize for API rate limits vs processing speed
+
+---
+
+*Last updated: August 29, 2025*  
+*Ready for SQLite database integration with multi-location support and auto-creation capabilities!*
