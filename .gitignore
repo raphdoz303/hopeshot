@@ -1,9 +1,5 @@
 # =============================================================================
-# HopeShot Project .gitignore
-# =============================================================================
-
-# =============================================================================
-# FRONTEND (Next.js/React)
+# FRONTEND DEVELOPMENT (UPDATED - v0.10.0)
 # =============================================================================
 
 # Next.js build output
@@ -32,6 +28,16 @@ next-env.d.ts
 
 # Testing
 coverage/
+
+# Frontend development files (NEW)
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Component testing artifacts (NEW)
+frontend/component-screenshots/
+frontend/storybook-static/
 
 # =============================================================================
 # BACKEND (Python/FastAPI)
@@ -63,7 +69,7 @@ backend/models/
 *.safetensors
 
 # =============================================================================
-# DATABASE FILES (NEW - v0.9.0)
+# DATABASE FILES (UPDATED - v0.10.0)
 # =============================================================================
 
 # SQLite database files (CRITICAL - NEVER COMMIT)
@@ -86,6 +92,15 @@ database_migration_*.sql
 quick_check.py
 check_categories.py
 debug_*.py
+
+# Category migration artifacts (NEW)
+category_migration_*.log
+migrate_categories_backup.py
+categories_before_migration.json
+
+# Schema update logs (NEW)
+schema_update_*.log
+update_categories_*.sql
 
 # =============================================================================
 # ENVIRONMENT & CONFIGURATION
@@ -144,7 +159,7 @@ prompts_archive_*.yaml
 prompt_experiments/
 
 # =============================================================================
-# DEVELOPMENT & DEBUGGING
+# DEVELOPMENT & DEBUGGING (UPDATED - v0.10.0)
 # =============================================================================
 
 # Source configuration backups
@@ -198,6 +213,16 @@ api_debug_*.json
 test_results/
 test_data_*.json
 batch_test_*.json
+
+# Frontend debugging files (NEW)
+frontend/api_debug_*.json
+frontend/component_debug_*.log
+frontend/mock_data_*.json
+
+# Component development artifacts (NEW)
+frontend/component_snapshots/
+frontend/.storybook/
+frontend/chromatic-build/
 
 # =============================================================================
 # IDE & EDITOR FILES
@@ -259,6 +284,11 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 
+# Frontend build artifacts (NEW)
+frontend/build/
+frontend/dist/
+frontend/.vercel/
+
 # =============================================================================
 # SECURITY & SENSITIVE DATA
 # =============================================================================
@@ -278,7 +308,7 @@ openai_*.json
 anthropic_*.json
 
 # =============================================================================
-# DATA & ANALYTICS
+# DATA & ANALYTICS (UPDATED - v0.10.0)
 # =============================================================================
 
 # Large data files
@@ -312,8 +342,13 @@ sqlite_dump_*.sql
 category_export_*.csv
 location_export_*.csv
 
+# Frontend analytics (NEW)
+frontend/analytics_*.json
+frontend/user_interaction_*.log
+frontend/component_performance_*.json
+
 # =============================================================================
-# PROJECT-SPECIFIC EXCLUSIONS
+# PROJECT-SPECIFIC EXCLUSIONS (UPDATED - v0.10.0)
 # =============================================================================
 
 # Keep important project files (override above exclusions)
@@ -325,12 +360,20 @@ location_export_*.csv
 !backend/debug_emotions.py
 !backend/database_setup.py
 !backend/database_migration.py
+!backend/migrate_categories.py
+!backend/update_categories_schema.py
+!backend/check_db_schema.py
 
 # Keep A/B testing configuration and documentation
 !backend/prompts.yaml
 !backend/sources.yaml
 !prompts.yaml
 !sources.yaml
+
+# Keep frontend component files (NEW)
+!frontend/src/components/*.tsx
+!frontend/src/app/**/*.tsx
+!frontend/src/app/globals.css
 
 # Version control and documentation
 !CHANGELOG.md
@@ -345,25 +388,35 @@ location_export_*.csv
 !package.json
 !tailwind.config.js
 !next.config.js
+!next.config.ts
 
 # =============================================================================
-# DATABASE & STORAGE NOTES (v0.9.0)
+# FRONTEND DEVELOPMENT NOTES (NEW - v0.10.0)
 # =============================================================================
 
-# hopeshot_news.db is intentionally excluded from version control because:
-# - Contains user-specific article data and API responses
-# - Database schema is recreated via database_setup.py script
-# - Development databases should not be shared between team members
-# - Production databases require separate deployment and backup strategies
+# Component development with mock data produces various debugging artifacts
+# that should not be committed. The frontend architecture uses:
+# - Mock data for UI development (tracked in components)
+# - API integration points (tracked for backend connectivity)
+# - CSS custom properties for theming (tracked in globals.css)
+# - TypeScript interfaces (tracked with components)
 #
-# Configuration files (prompts.yaml, sources.yaml) are tracked to enable:
-# - Collaborative prompt development and source management
-# - Version history of experimental configurations
-# - Shared A/B testing experiments across team members
-# - Systematic tracking of prompt performance improvements
+# Frontend testing generates temporary files that should be excluded
+# while keeping the core component architecture and styling in version control.
+
+# =============================================================================
+# DATABASE & CATEGORY SYSTEM NOTES (NEW - v0.10.0)
+# =============================================================================
+
+# The standardized 8-category system migration creates various backup and
+# debug files that should not be committed. The category system includes:
+# - Database schema updates (tracked via migration scripts)
+# - Category metadata with visual identity (stored in database)
+# - Frontend API integration (tracked in component code)
+# - A/B testing compatibility (tracked in prompts.yaml)
 #
-# Database structure is defined in code (database_setup.py) rather than
-# committed database files for proper version control and team collaboration
+# Migration artifacts and debug files are excluded while keeping
+# the migration scripts and configuration in version control.
 
 # =============================================================================
 # DUAL STORAGE ARCHITECTURE NOTES
@@ -372,9 +425,15 @@ location_export_*.csv
 # SQLite database files excluded but schema tracked in:
 # - database_setup.py (initial schema creation)
 # - database_migration.py (schema evolution scripts)
+# - migrate_categories.py (category standardization)
 # - services/database_service.py (auto-creation logic)
 #
 # Google Sheets integration configured via:
 # - .env file (GOOGLE_SHEETS_ID)
 # - gsheetapi_credentials.json (excluded service account)
 # - services/sheets_service.py (schema mapping)
+#
+# Frontend integration configured via:
+# - globals.css (color system)
+# - component TypeScript interfaces (tracked)
+# - API endpoint integration (tracked in components)

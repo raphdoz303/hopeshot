@@ -38,6 +38,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/categories")
+async def get_categories():
+    """Get all available categories for filtering"""
+    try:
+        from services.database_service import DatabaseService
+        
+        db = DatabaseService()
+        
+        # Get categories with proper structure for frontend
+        categories = db.get_all_categories()
+        
+        return {
+            "status": "success",
+            "categories": categories,
+            "total": len(categories)
+        }
+        
+    except Exception as e:
+        print(f"Categories API error: {e}")
+        return {
+            "status": "error",
+            "message": "Failed to fetch categories",
+            "categories": [],
+            "total": 0
+        }
+
 @app.get("/")
 async def root():
     """Root endpoint - API status and information"""

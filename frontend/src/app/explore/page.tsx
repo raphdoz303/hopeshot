@@ -3,6 +3,17 @@
 import { useState, useEffect } from 'react'
 import VerticalNewsCard from '../../components/VerticalNewsCard'
 
+// Interface for category from API
+interface Category {
+  id: number
+  name: string
+  filter_name: string
+  emoji: string
+  description: string
+  color: string
+  accent: string
+}
+
 // Mock data for now - we'll connect to your API later
 const mockArticles = [
   {
@@ -12,7 +23,7 @@ const mockArticles = [
     source: { name: "AFP" },
     publishedAt: "2025-08-29T10:30:00Z",
     gemini_analysis: {
-      categories: ["health", "science", "technology"],
+      categories: ["health", "science tech"],
       geographical_impact_level: "Global" as const,
       geographical_impact_location_names: ["USA", "World"]
     }
@@ -24,7 +35,7 @@ const mockArticles = [
     source: { name: "NewsAPI" },
     publishedAt: "2025-08-28T15:45:00Z",
     gemini_analysis: {
-      categories: ["society", "environment"],
+      categories: ["social progress", "environment"],
       geographical_impact_level: "Local" as const,
       geographical_impact_location_names: ["Detroit", "USA"]
     }
@@ -36,7 +47,7 @@ const mockArticles = [
     source: { name: "NewsData" },
     publishedAt: "2025-08-27T09:15:00Z",
     gemini_analysis: {
-      categories: ["technology", "environment", "science"],
+      categories: ["science tech", "environment"],
       geographical_impact_level: "Global" as const,
       geographical_impact_location_names: ["Germany", "Europe"]
     }
@@ -48,7 +59,7 @@ const mockArticles = [
     source: { name: "AFP" },
     publishedAt: "2025-08-26T14:20:00Z",
     gemini_analysis: {
-      categories: ["education", "technology", "health"],
+      categories: ["education", "science tech", "health"],
       geographical_impact_level: "Regional" as const,
       geographical_impact_location_names: ["Kenya", "Africa"]
     }
@@ -57,7 +68,48 @@ const mockArticles = [
 
 export default function ExplorePage() {
   const [articles, setArticles] = useState(mockArticles)
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedImpact, setSelectedImpact] = useState<string[]>(['Global', 'Regional'])
+
+  // Fetch categories from API
+  useEffect(() => {
+    console.log('Fetching categories from API...')
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/categories')
+        const data = await response.json()
+        
+        console.log('Categories response:', data)
+        
+        if (data.status === 'success') {
+          setCategories(data.categories)
+          console.log('Categories set:', data.categories)
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
+  const toggleCategory = (categoryName: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(categoryName) 
+        ? prev.filter(cat => cat !== categoryName)
+        : [...prev, categoryName]
+    )
+  }
+
+  const toggleImpact = (impact: string) => {
+    setSelectedImpact(prev => 
+      prev.includes(impact) 
+        ? prev.filter(imp => imp !== impact)
+        : [...prev, impact]
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-sky-growth">
@@ -81,23 +133,31 @@ export default function ExplorePage() {
             {/* Category filters */}
             <div>
               <label className="text-sm font-medium mb-3 block" style={{ color: 'var(--neutral-900)' }}>
-                Categories
+                Categories ({categories.length} available)
               </label>
               <div className="flex flex-wrap gap-2">
-                {['science', 'health', 'technology', 'environment', 'society', 'education'].map((category) => (
-                  <button
-                    key={category}
-                    className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-colors"
-                    style={{
-                      borderColor: 'var(--neutral-300)',
-                      backgroundColor: 'var(--neutral-50)',
-                      color: 'var(--neutral-700)'
-                    }}
-                  >
-                    <span>🔬</span> {/* We'll make this dynamic */}
-                    <span className="capitalize">{category}</span>
-                  </button>
-                ))}
+                {categories.length > 0 ? categories.map((category) => {
+                  const isSelected = selectedCategories.includes(category.name)
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => toggleCategory(category.name)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-colors"
+                      style={{
+                        borderColor: isSelected ? category.accent : 'var(--neutral-300)',
+                        backgroundColor: isSelected ? category.color : 'var(--neutral-50)',
+                        color: isSelected ? category.accent : 'var(--neutral-700)'
+                      }}
+                    >
+                      <span>{category.emoji}</span>
+                      <span>{category.filter_name}</span>
+                    </button>
+                  )
+                }) : (
+                  <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
+                    Loading categories...
+                  </p>
+                )}
               </div>
             </div>
 
@@ -107,20 +167,24 @@ export default function ExplorePage() {
                 Impact Level
               </label>
               <div className="flex gap-2">
-                {['Global', 'Regional', 'Local'].map((impact) => (
-                  <button
-                    key={impact}
-                    className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium"
-                    style={{
-                      borderColor: 'var(--sky-300)',
-                      backgroundColor: 'var(--sky-50)',
-                      color: 'var(--sky-700)'
-                    }}
-                  >
-                    <span>{impact === 'Global' ? '🌍' : impact === 'Regional' ? '🗺️' : '📍'}</span>
-                    <span>{impact}</span>
-                  </button>
-                ))}
+                {['Global', 'Regional', 'Local'].map((impact) => {
+                  const isSelected = selectedImpact.includes(impact)
+                  return (
+                    <button
+                      key={impact}
+                      onClick={() => toggleImpact(impact)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-colors"
+                      style={{
+                        borderColor: isSelected ? 'var(--sky-500)' : 'var(--neutral-300)',
+                        backgroundColor: isSelected ? 'var(--sky-50)' : 'var(--neutral-50)',
+                        color: isSelected ? 'var(--sky-700)' : 'var(--neutral-700)'
+                      }}
+                    >
+                      <span>{impact === 'Global' ? '🌍' : impact === 'Regional' ? '🗺️' : '📍'}</span>
+                      <span>{impact}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -151,7 +215,13 @@ export default function ExplorePage() {
         {/* Results meta */}
         <div className="mb-6">
           <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
-            {articles.length} results • last 7 days • all categories
+            {articles.length} results • last 7 days • 
+            {selectedCategories.length > 0 
+              ? ` categories: ${selectedCategories.join(', ')}` 
+              : ' all categories'}
+            {selectedImpact.length > 0 && selectedImpact.length < 3 
+              ? ` • ${selectedImpact.join(', ').toLowerCase()} impact` 
+              : ''}
           </p>
         </div>
 

@@ -4,7 +4,7 @@
 HopeShot is a learning-first project with simple, modular components designed for easy understanding and extension. The system aggregates positive news from multiple sources using AI-powered sentiment analysis via Google Gemini API with multi-prompt A/B testing capabilities, logging comprehensive comparative data to Google Sheets for research and storing normalized application data in SQLite database with auto-creation of categories and geographic hierarchies.
 
 ## Technology Stack
-- **Frontend**: Next.js (React framework) with TypeScript and Tailwind CSS
+- **Frontend**: Next.js (React framework) with TypeScript and Tailwind CSS v4
 - **Backend**: FastAPI (Python web framework) with Uvicorn ASGI server
 - **Database**: SQLite with normalized schema and junction tables for relationships
 - **Authentication**: OAuth2 password grant (AFP), API key authentication (NewsAPI, NewsData), Service account (Google Sheets)
@@ -12,6 +12,7 @@ HopeShot is a learning-first project with simple, modular components designed fo
 - **AI/ML**: Google Gemini 2.5 Flash-Lite with multi-prompt A/B testing framework
 - **Configuration**: YAML-based prompt and source management for easy experimentation
 - **Data Storage**: Dual strategy - SQLite for application data, Google Sheets for A/B testing research
+- **UI System**: Custom Sky & Growth color palette with CSS variables
 - **Version Control**: Git + GitHub
 
 ## Project Structure
@@ -28,12 +29,15 @@ hopeshot/
 ├── frontend/                      # Next.js application
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── page.tsx           # Homepage component
-│   │   │   └── test/page.tsx      # API testing interface
+│   │   │   ├── page.tsx           # Homepage with hero + top 3 articles
+│   │   │   ├── explore/page.tsx   # News feed with dynamic filtering
+│   │   │   ├── test-cards/page.tsx # Component testing interface
+│   │   │   └── globals.css        # Sky & Growth color palette + Tailwind
 │   │   └── components/
-│   │       └── StatusBanner.tsx   # Reusable status display component
+│   │       ├── VerticalNewsCard.tsx # Article card for explore grid
+│   │       └── HorizontalHighlightCard.tsx # Featured article for homepage
 │   ├── package.json               # Node.js dependencies
-│   └── tailwind.config.js         # Styling configuration
+│   └── tailwind.config.js         # Tailwind configuration (unused in v4)
 ├── backend/
 │   ├── main.py                    # FastAPI application with dual storage endpoints
 │   ├── requirements.txt           # Python dependencies
@@ -43,7 +47,7 @@ hopeshot/
 │   ├── hopeshot_news.db          # SQLite database (gitignored)
 │   ├── gsheetapi_credentials.json # Google Sheets service account (gitignored)
 │   ├── database_setup.py          # SQLite schema creation script
-│   ├── database_migration.py      # Schema migration utilities
+│   ├── database_migration.py      # Schema migration utilitiesy
 │   ├── test_sentiment.py          # Legacy sentiment analysis testing tool
 │   ├── test_gemini.py             # Gemini API connection testing
 │   ├── test_analysis.py           # Gemini analysis functionality testing
@@ -81,7 +85,7 @@ articles (40 columns):
 - Reserved: 3 columns for future expansion
 
 categories:
-- id, name, description, color, emoji, created_at
+- id, name, filter_name, emoji, description, color, accent, created_at
 
 locations (hierarchical):
 - id, name, level (country/region/continent), parent_id, created_at
@@ -91,6 +95,19 @@ article_categories (many-to-many):
 
 article_locations (many-to-many):
 - article_id, location_id
+```
+
+### Standardized Category System
+```
+8 categories with clean naming and visual identity:
+- science tech (🔬) - breakthroughs, inventions, space, AI, research, discoveries
+- health (🩺) - medical progress, wellbeing, mental health, public health improvements  
+- environment (🌱) - climate action, conservation, renewable energy, biodiversity recovery
+- social progress (✊) - equality, inclusion, policy changes, social justice improvements
+- education (📚) - access to learning, teaching methods, scholarships, edtech
+- human kindness (🤝) - acts of generosity, rescues, donations, everyday hero stories
+- diplomacy (🕊️) - peace agreements, negotiations, conflict resolution, cooperation between nations
+- culture (🎨) - arts, heritage, creativity, festivals, inspiring cultural projects
 ```
 
 ### Data Pipeline Flow with Dual Storage
@@ -120,6 +137,25 @@ Query Capability:
 - "Articles about Asia": Includes both Vietnam and Japan articles via hierarchy
 ```
 
+## Frontend Architecture
+
+### Component System
+- **VerticalNewsCard**: Primary article display component with category colors, impact chips, and metadata
+- **HorizontalHighlightCard**: Featured article component for homepage with rank badges and category illustrations
+- **ExplorePage**: News feed with dynamic category filtering and responsive grid layout
+- **HomePage**: Hero section with call-to-action and top 3 articles from last 7 days
+
+### Design System
+- **Sky & Growth Palette**: Custom color system with CSS variables for consistent branding
+- **Category Colors**: Each category has unique background, text, and accent colors plus emoji
+- **Impact Mapping**: Visual indicators for Global (🌍), Regional (🗺️), Local (📍) impact levels
+- **Responsive Grid**: 1 column mobile, 2 columns tablet, 3 columns desktop
+
+### State Management
+- **React Hooks**: useState and useEffect for component state and API calls
+- **Dynamic Filtering**: Interactive category and impact level selection with visual feedback
+- **API Integration**: Fetch categories from database, articles from news endpoints
+
 ## Service Architecture
 
 ### News Service Layer
@@ -128,7 +164,7 @@ Query Capability:
 - **Client Implementations**: 
   - **NewsAPIClient**: Mainstream news sources with positive keyword filtering
   - **NewsDataClient**: Alternative/international sources with category filtering
-  - **AFPClient**: Professional journalism with OAuth2 authentication (inspiring filter removed)
+  - **AFPClient**: Professional journalism with OAuth2 authentication
 
 ### Enhanced Analysis Layer with Auto-Creation
 - **GeminiService**: Complete AI analysis service with YAML-based A/B testing framework and geographic auto-creation
@@ -194,6 +230,25 @@ Query Capability:
 }
 ```
 
+### Enhanced Response Structure with Frontend Support
+```json
+{
+  "status": "success",
+  "categories": [
+    {
+      "id": 1,
+      "name": "science tech",
+      "filter_name": "Science & Tech", 
+      "emoji": "🔬",
+      "description": "breakthroughs, inventions, space, AI, research, discoveries",
+      "color": "#E6FBFF",
+      "accent": "#00A7C4"
+    }
+  ],
+  "total": 8
+}
+```
+
 ### Authentication Systems
 - **NewsAPI**: Simple API key authentication
 - **NewsData**: API key with query parameters
@@ -256,31 +311,37 @@ WHERE child.level = 'country';
 6. **Configuration-Driven Behavior** - YAML-based experimentation without code changes
 7. **Database-Driven Architecture** - Normalized data with proper relationships
 
-## Current Status (v0.9.0)
-- ✅ Complete SQLite database integration with normalized schema and auto-creation
-- ✅ Multi-location junction table architecture supporting complex geographic relationships
-- ✅ Dual storage pipeline (SQLite for app data, Sheets for A/B testing research)
-- ✅ Multi-prompt A/B testing framework with YAML configuration
-- ✅ Geographic hierarchy auto-generation with parent-child relationships
-- ✅ Category auto-creation with many-to-many article relationships
-- ✅ Connection management preventing database locks during bulk operations
-- 🔄 Multi-source news aggregation (AFP active, NewsAPI/NewsData configurable)
-- 📋 Prompt optimization needed for better category classification and geographic accuracy
+## Current Status (v0.10.0)
+- ✅ Complete frontend architecture with responsive design
+- ✅ Dynamic category system with database integration
+- ✅ Sky & Growth color palette implementation
+- ✅ Component-based architecture with reusable cards
+- ✅ Homepage with hero section and featured articles
+- ✅ Explore page with interactive filtering UI
+- ✅ Standardized 8-category system with visual identity
+- 🔄 Mock data used for UI development (ready for API integration)
+- 📋 Filter interactions implemented but not connected to backend queries
 
 ## Technical Debt
-- **Geographic inference**: Simple country-to-region mapping needs external API integration
-- **Connection management**: Could use connection pooling for production scale
-- **Schema evolution**: Backward compatibility approach keeps old columns
-- **Error handling**: Enhanced logging needed for production debugging
-- **Prompt quality**: Category classification needs refinement for accuracy
+- **Mock data dependency**: Frontend components need real API integration
+- **Filter functionality gap**: UI exists but doesn't query backend with selections
+- **Navigation system missing**: No header/menu to move between pages
+- **Error handling incomplete**: Limited error states for API failures
+- **Loading states absent**: No spinners or skeleton screens during API calls
+- **Category color duplication**: Color mapping repeated across components
 
-## Scaling Considerations with Database Integration
-- **Database Performance**: SQLite suitable for single-user applications, PostgreSQL for production
-- **Multi-Location Processing**: Junction table queries optimized with indexes
-- **Auto-Creation Overhead**: Minimal impact due to efficient existence checking
-- **A/B Testing Scale**: 3x analysis time acceptable for research phase
-- **Storage Strategy**: Database for application queries, sheets for research analysis
+## Scaling Considerations with Frontend Integration
+- **Component Performance**: React rendering optimization for large article lists
+- **API Response Caching**: Consider frontend caching for category metadata
+- **Responsive Design**: Tested on mobile/tablet/desktop breakpoints
+- **Accessibility**: Proper ARIA labels for screen readers, keyboard navigation
+- **SEO Considerations**: Server-side rendering for article content
 
+## User Experience Design
+- **2010s Internet Aesthetic**: Clean, readable design with subtle gradients and clear typography
+- **Ethical Attention Design**: No infinite scroll, clear pagination, time-spent awareness
+- **Positive Focus**: Optimistic color palette, hopeful messaging, constructive content curation
+- **Information Hierarchy**: Clear visual hierarchy with impact levels, categories, and metadata
 ## Geographic Hierarchy System
 
 ### Country-to-Region Inference Mapping

@@ -20,6 +20,40 @@ class DatabaseService:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
+    def get_all_categories(self):
+        """Get all categories with their metadata for frontend filtering"""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, name, filter_name, emoji, description, color, accent
+                FROM categories 
+                ORDER BY filter_name
+            """)
+            
+            rows = cursor.fetchall()
+            categories = []
+            
+            for row in rows:
+                categories.append({
+                    "id": row[0],
+                    "name": row[1],           # For API/Gemini (e.g., "science tech")
+                    "filter_name": row[2],   # For UI display (e.g., "Science & Tech") 
+                    "emoji": row[3],
+                    "description": row[4],
+                    "color": row[5],
+                    "accent": row[6]
+                })
+            
+            conn.close()
+            return categories
+            
+        except Exception as e:
+            print(f"Error fetching categories: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
     def get_or_create_category(self, name: str, description: str = None, color: str = None, emoji: str = None,
                             conn: Optional[sqlite3.Connection] = None) -> Optional[int]:
         """
@@ -193,41 +227,27 @@ class DatabaseService:
             cursor.execute(insert_query, values)
             article_id = cursor.lastrowid
             
-            # DEBUG: Check what categories look like
-            print(f"DEBUG Categories: {gemini_analysis.get('categories')} (type: {type(gemini_analysis.get('categories'))})")
-            
-            # Handle categories (many-to-many relationship) - SINGLE CLEAN VERSION
+            # Handle categories (many-to-many relationship)
             categories = gemini_analysis.get('categories', [])
-            print(f"DEBUG: Raw categories = {categories}")
-
+            
             # Handle both list and string formats
             if isinstance(categories, str):
                 try:
                     categories = json.loads(categories)
-                    print(f"DEBUG: Parsed string to list = {categories}")
                 except json.JSONDecodeError:
                     categories = [categories] if categories else []
-                    print(f"DEBUG: JSON parse failed, using as single item = {categories}")
             elif not isinstance(categories, list):
                 categories = []
-                print(f"DEBUG: Not a list or string, setting to empty list")
-
-            print(f"DEBUG: Final categories list = {categories}")
 
             # Create categories and link to article
             for category_name in categories:
-                print(f"DEBUG: Processing category: '{category_name}'")
                 if category_name and category_name.strip():
                     category_id = self.get_or_create_category(category_name.strip(), conn=conn)
-                    print(f"DEBUG: Created/found category ID: {category_id}")
                     if category_id:
                         cursor.execute(
                             "INSERT OR IGNORE INTO article_categories (article_id, category_id) VALUES (?, ?)",
                             (article_id, category_id)
                         )
-                        print(f"DEBUG: Linked article {article_id} to category {category_id}")
-                else:
-                    print(f"DEBUG: Skipping empty/invalid category: '{category_name}'")
             
             # Handle locations (many-to-many relationship via junction table)
             location_ids = gemini_analysis.get('geographical_impact_location_ids', [])
@@ -266,249 +286,6 @@ class DatabaseService:
         except Exception as e:
             print(f"Error checking URL existence: {e}")
             return False
-
-    def get_articles_with_locations(self, limit: int = 50, location_filter: str = None) -> List[Dict[str, Any]]:
-        """
-        Get recent articles with their categories and locations using proper joins
-        Supports filtering by specific location name
-        """
-        try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            
-            # Base query with location joins
-            base_query = """
-                SELECT DISTINCT a.*
-                FROM articles a
-                LEFT JOIN article_locations al ON a.id = al.article_id
-                LEFT JOIN locations l ON al.location_id = l.id
-            """
-            
-            # Add location filter if specified
-            where_clause = ""
-            params = []
-            
-            if location_filter:
-                where_clause = "WHERE l.name LIKE ? OR a.geographical_impact_level = ?"
-                params = [f"%{location_filter}%", location_filter]
-            
-            # Complete query
-            query = f"""
-                {base_query}
-                {where_clause}
-                ORDER BY a.timestamp DESC
-                LIMIT ?
-            """
-            params.append(limit)
-            
-            cursor.execute(query, params)
-            columns = [description[0] for description in cursor.description]
-            articles = []
-            
-            for row in cursor.fetchall():
-                article = dict(zip(columns, row))
-                
-                # Get categories for this article
-                cursor.execute("""
-                    SELECT c.name, c.description, c.color, c.emoji
-                    FROM categories c
-                    JOIN article_categories ac ON c.id = ac.category_id
-                    WHERE ac.article_id = ?
-                """, (article['id'],))
-                
-                categories = cursor.fetchall()
-                article['categories'] = [
-                    {'name': cat[0], 'description': cat[1], 'color': cat[2], 'emoji': cat[3]}
-                    for cat in categories
-                ]
-                
-                # Get locations for this article (multi-location support)
-                cursor.execute("""
-                    SELECT l.id, l.name, l.level, l.parent_id,
-                           parent.name as parent_name, parent.level as parent_level
-                    FROM locations l
-                    JOIN article_locations al ON l.id = al.location_id
-                    LEFT JOIN locations parent ON l.parent_id = parent.id
-                    WHERE al.article_id = ?
-                    ORDER BY l.level, l.name
-                """, (article['id'],))
-                
-                locations = cursor.fetchall()
-                article['locations'] = [
-                    {
-                        'id': loc[0],
-                        'name': loc[1], 
-                        'level': loc[2],
-                        'parent_id': loc[3],
-                        'parent_name': loc[4],
-                        'parent_level': loc[5]
-                    }
-                    for loc in locations
-                ]
-                
-                articles.append(article)
-            
-            conn.close()
-            return articles
-            
-        except Exception as e:
-            print(f"Error retrieving articles with locations: {e}")
-            return []
-
-    def get_articles_by_location(self, location_name: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        Get articles that mention a specific location (including parent relationships)
-        Example: get_articles_by_location("France") returns articles about France
-        """
-        try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            
-            # Find articles that mention this location or its children
-            query = """
-                SELECT DISTINCT a.*
-                FROM articles a
-                JOIN article_locations al ON a.id = al.article_id
-                JOIN locations l ON al.location_id = l.id
-                LEFT JOIN locations parent ON l.parent_id = parent.id
-                WHERE l.name = ? OR parent.name = ?
-                ORDER BY a.timestamp DESC
-                LIMIT ?
-            """
-            
-            cursor.execute(query, (location_name, location_name, limit))
-            columns = [description[0] for description in cursor.description]
-            articles = []
-            
-            for row in cursor.fetchall():
-                article = dict(zip(columns, row))
-                
-                # Add location and category data
-                article = self._add_article_relationships(cursor, article)
-                articles.append(article)
-            
-            conn.close()
-            return articles
-            
-        except Exception as e:
-            print(f"Error retrieving articles by location: {e}")
-            return []
-
-    def _add_article_relationships(self, cursor, article: Dict) -> Dict:
-        """Helper method to add categories and locations to an article"""
-        article_id = article['id']
-        
-        # Get categories
-        cursor.execute("""
-            SELECT c.name, c.description, c.color, c.emoji
-            FROM categories c
-            JOIN article_categories ac ON c.id = ac.category_id
-            WHERE ac.article_id = ?
-        """, (article_id,))
-        
-        categories = cursor.fetchall()
-        article['categories'] = [
-            {'name': cat[0], 'description': cat[1], 'color': cat[2], 'emoji': cat[3]}
-            for cat in categories
-        ]
-        
-        # Get locations with hierarchy
-        cursor.execute("""
-            SELECT l.id, l.name, l.level, l.parent_id,
-                   parent.name as parent_name, parent.level as parent_level
-            FROM locations l
-            JOIN article_locations al ON l.id = al.location_id
-            LEFT JOIN locations parent ON l.parent_id = parent.id
-            WHERE al.article_id = ?
-            ORDER BY l.level, l.name
-        """, (article_id,))
-        
-        locations = cursor.fetchall()
-        article['locations'] = [
-            {
-                'id': loc[0],
-                'name': loc[1], 
-                'level': loc[2],
-                'parent_id': loc[3],
-                'parent_name': loc[4],
-                'parent_level': loc[5]
-            }
-            for loc in locations
-        ]
-        
-        return article
-
-    def get_recent_articles(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get recent articles with categories and locations"""
-        return self.get_articles_with_locations(limit)
-
-    def get_location_hierarchy(self, location_id: int) -> Dict[str, Any]:
-        """Get full hierarchy for a location (child -> parent -> grandparent)"""
-        try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            
-            # Get location with its full hierarchy
-            cursor.execute("""
-                WITH RECURSIVE location_hierarchy AS (
-                    SELECT id, name, level, parent_id, 0 as depth
-                    FROM locations 
-                    WHERE id = ?
-                    
-                    UNION ALL
-                    
-                    SELECT l.id, l.name, l.level, l.parent_id, lh.depth + 1
-                    FROM locations l
-                    JOIN location_hierarchy lh ON l.id = lh.parent_id
-                )
-                SELECT * FROM location_hierarchy ORDER BY depth
-            """, (location_id,))
-            
-            hierarchy = cursor.fetchall()
-            conn.close()
-            
-            return {
-                'location_chain': [
-                    {'id': row[0], 'name': row[1], 'level': row[2], 'depth': row[4]}
-                    for row in hierarchy
-                ]
-            }
-            
-        except Exception as e:
-            print(f"Error getting location hierarchy: {e}")
-            return {'location_chain': []}
-
-    def get_articles_by_category(self, category_name: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get articles by category with full location data"""
-        try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            
-            query = """
-                SELECT DISTINCT a.*
-                FROM articles a
-                JOIN article_categories ac ON a.id = ac.article_id
-                JOIN categories c ON ac.category_id = c.id
-                WHERE c.name = ?
-                ORDER BY a.timestamp DESC
-                LIMIT ?
-            """
-            
-            cursor.execute(query, (category_name, limit))
-            columns = [description[0] for description in cursor.description]
-            articles = []
-            
-            for row in cursor.fetchall():
-                article = dict(zip(columns, row))
-                article = self._add_article_relationships(cursor, article)
-                articles.append(article)
-            
-            conn.close()
-            return articles
-            
-        except Exception as e:
-            print(f"Error retrieving articles by category: {e}")
-            return []
 
     def get_database_stats(self) -> Dict[str, Any]:
         """Get comprehensive database statistics including junction tables"""
@@ -576,49 +353,6 @@ class DatabaseService:
         except Exception as e:
             print(f"Error getting database stats: {e}")
             return {}
-
-    def search_articles(self, search_term: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        Search articles by title, description, or location/category names
-        Full-text search across multiple fields
-        """
-        try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            
-            query = """
-                SELECT DISTINCT a.*
-                FROM articles a
-                LEFT JOIN article_categories ac ON a.id = ac.article_id
-                LEFT JOIN categories c ON ac.category_id = c.id
-                LEFT JOIN article_locations al ON a.id = al.article_id
-                LEFT JOIN locations l ON al.location_id = l.id
-                WHERE 
-                    a.title LIKE ? OR 
-                    a.description LIKE ? OR 
-                    c.name LIKE ? OR 
-                    l.name LIKE ?
-                ORDER BY a.timestamp DESC
-                LIMIT ?
-            """
-            
-            search_param = f"%{search_term}%"
-            cursor.execute(query, (search_param, search_param, search_param, search_param, limit))
-            
-            columns = [description[0] for description in cursor.description]
-            articles = []
-            
-            for row in cursor.fetchall():
-                article = dict(zip(columns, row))
-                article = self._add_article_relationships(cursor, article)
-                articles.append(article)
-            
-            conn.close()
-            return articles
-            
-        except Exception as e:
-            print(f"Error searching articles: {e}")
-            return []
 
     def test_connection(self) -> Dict[str, Any]:
         """Test database connection and junction table setup"""

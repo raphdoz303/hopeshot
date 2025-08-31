@@ -48,7 +48,7 @@ v1_comprehensive:
 
 v2_precision:
   name: "Precision & Schema Strictness"
-  active: true
+  active: false
   description: "Strict JSON schema compliance with clear examples"
   prompt: |
     OBJECTIVE:
@@ -99,7 +99,7 @@ v2_precision:
 
 v3_empathy_depth:
   name: "Emotion & Subtle Hope Detection"
-  active: true
+  active: false
   description: "Emphasize hope and optimism nuances"
   prompt: |
     OBJECTIVE:

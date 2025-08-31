@@ -29,6 +29,108 @@ Root endpoint providing basic API information.
 
 ---
 
+### **GET /api/categories**
+Get all available categories with metadata for dynamic frontend filtering.
+
+**Query Parameters**: None
+
+**Example Request**:
+```bash
+curl "http://localhost:8000/api/categories"
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "categories": [
+    {
+      "id": 1,
+      "name": "science tech",
+      "filter_name": "Science & Tech",
+      "emoji": "🔬",
+      "description": "breakthroughs, inventions, space, AI, research, discoveries",
+      "color": "#E6FBFF",
+      "accent": "#00A7C4"
+    },
+    {
+      "id": 2,
+      "name": "health",
+      "filter_name": "Health",
+      "emoji": "🩺",
+      "description": "medical progress, wellbeing, mental health, public health improvements",
+      "color": "#E9FBFB",
+      "accent": "#0EA5A4"
+    },
+    {
+      "id": 3,
+      "name": "environment",
+      "filter_name": "Environment",
+      "emoji": "🌱",
+      "description": "climate action, conservation, renewable energy, biodiversity recovery",
+      "color": "#EAFBF1",
+      "accent": "#22C55E"
+    },
+    {
+      "id": 4,
+      "name": "social progress",
+      "filter_name": "Social Progress",
+      "emoji": "✊",
+      "description": "equality, inclusion, policy changes, social justice improvements",
+      "color": "#FFEDEF",
+      "accent": "#E84E5A"
+    },
+    {
+      "id": 5,
+      "name": "education",
+      "filter_name": "Education",
+      "emoji": "📚",
+      "description": "access to learning, teaching methods, scholarships, edtech",
+      "color": "#F3F0FF",
+      "accent": "#7C3AED"
+    },
+    {
+      "id": 6,
+      "name": "human kindness",
+      "filter_name": "Human Kindness",
+      "emoji": "🤝",
+      "description": "acts of generosity, rescues, donations, everyday hero stories",
+      "color": "#EEF2FF",
+      "accent": "#6366F1"
+    },
+    {
+      "id": 7,
+      "name": "diplomacy",
+      "filter_name": "Diplomacy",
+      "emoji": "🕊️",
+      "description": "peace agreements, negotiations, conflict resolution, cooperation between nations",
+      "color": "#EEFDF4",
+      "accent": "#12B981"
+    },
+    {
+      "id": 8,
+      "name": "culture",
+      "filter_name": "Culture",
+      "emoji": "🎨",
+      "description": "arts, heritage, creativity, festivals, inspiring cultural projects",
+      "color": "#EAF6FF",
+      "accent": "#3BA3FF"
+    }
+  ],
+  "total": 8
+}
+```
+
+**Category Field Descriptions**:
+- `name`: Internal category name used by Gemini AI (e.g., "science tech")
+- `filter_name`: Clean display name for frontend UI (e.g., "Science & Tech")
+- `emoji`: Visual identifier for category
+- `description`: Scope and examples of category content
+- `color`: Background color for category chips/badges
+- `accent`: Border and text color for selected states
+
+---
+
 ### **GET /api/news**
 Fetch positive news from all available sources with multi-prompt Gemini analysis and dual storage (SQLite database + Google Sheets).
 

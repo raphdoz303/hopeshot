@@ -59,18 +59,46 @@ Backend will be available at `http://localhost:8000`
 - `datasets>=2.0.0` - Model download support (backup)
 
 ### 3. Frontend Setup (Next.js/React)
+
+#### New Development Workflow
 ```bash
-# From project root
+# Frontend development with component testing
 cd frontend
-
-# Install Node.js dependencies
-npm install
-
-# Start development server
 npm run dev
+
+# Access component testing interface
+http://localhost:3000/test-cards
+
+# Access new explore page
+http://localhost:3000/explore
 ```
 
-Frontend will be available at `http://localhost:3000`
+#### Tailwind CSS v4 Configuration
+The project uses Tailwind CSS v4 with CSS custom properties instead of traditional config files:
+
+**Location**: `frontend/src/app/globals.css`
+```css
+:root {
+  /* Sky & Growth Color Palette */
+  --sky-50: #EAF6FF;
+  --sky-500: #3BA3FF;
+  --sky-700: #1D6FD1;
+  --growth-50: #EAFBF1;
+  --growth-500: #22C55E;
+  /* ... additional colors */
+}
+
+/* Custom utility classes */
+.bg-gradient-sky-growth { 
+  background: linear-gradient(135deg, var(--sky-50), var(--growth-50));
+}
+```
+
+#### Component Architecture
+New components with standardized interfaces:
+- `VerticalNewsCard.tsx` - Article display for explore grid
+- `HorizontalHighlightCard.tsx` - Featured articles for homepage
+- Both components use TypeScript interfaces and dynamic category colors
 
 ---
 
@@ -109,6 +137,14 @@ The database is automatically created when you run `database_setup.py`. This cre
 ---
 
 ## API Configuration
+
+#### New API Endpoint Testing
+```bash
+# Test category API endpoint
+curl http://localhost:8000/api/categories
+
+# Expected response with 8 categories including filter_name, emoji, colors
+```
 
 ### Google Gemini API Setup
 1. **Create Google Cloud Project** (if you don't have one)
@@ -480,6 +516,104 @@ Enables queries: "Articles about Vietnam", "Articles about Southeast Asia", "Art
 - **Database indexing**: Additional indexes for complex geographic queries
 - **Prompt efficiency**: Shorter prompts for faster processing
 - **Batch size tuning**: Optimize for API rate limits vs processing speed
+
+
+### Development Environment Verification
+
+#### Complete System Test
+```bash
+# 1. Backend health check with category system
+curl http://localhost:8000/health
+
+# 2. Category API functionality
+curl http://localhost:8000/api/categories
+
+# 3. Frontend development server
+cd frontend && npm run dev
+
+# 4. Component testing
+http://localhost:3000/test-cards
+
+# 5. Full application
+http://localhost:3000/explore
+```
+
+### Troubleshooting Updates
+
+#### Frontend Issues
+**Tailwind CSS not working**:
+- Ensure `globals.css` contains the CSS custom properties
+- Restart frontend dev server after CSS changes
+- Use browser dev tools to verify CSS variables are loaded
+
+**Components not updating**:
+- Hard refresh (Ctrl+Shift+R) to bypass cache
+- Check browser console for JavaScript errors
+- Verify TypeScript compilation is successful
+
+**Categories not loading**:
+- Check Network tab in browser dev tools for API calls
+- Verify backend server is running on port 8000
+- Check backend terminal for any database connection errors
+
+#### Database Issues
+**Categories API returns empty array**:
+- Run `py check_db_schema.py` to verify categories table structure
+- Ensure migration scripts completed successfully
+- Check backend terminal for database service errors
+
+**New columns not found**:
+- Run `py update_categories_schema.py` to add missing columns
+- Verify schema matches expected structure with filter_name and accent columns
+
+### Production Considerations (Updated)
+
+#### Environment Variables
+No new environment variables required for frontend category system.
+
+#### Database Schema
+The categories table now includes additional columns for frontend integration:
+```sql
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    filter_name TEXT,  -- NEW: Clean display name
+    emoji TEXT,
+    description TEXT,
+    color TEXT,
+    accent TEXT,       -- NEW: Accent color for selected states
+    created_at TIMESTAMP
+);
+```
+
+#### Frontend Build Process
+```bash
+# Production build with custom CSS variables
+cd frontend
+npm run build
+npm start
+```
+
+### Known Issues & Solutions (v0.10.0)
+
+#### Current Limitations
+- **Mock Data**: Frontend components use mock articles, real API integration pending
+- **Filter Functionality**: UI complete but doesn't query backend with selected filters
+- **Navigation**: No header/menu system between homepage and explore page
+- **Error Handling**: Basic console logging, no user-facing error states
+
+#### Immediate Next Steps
+1. Connect frontend components to real `/api/news` endpoint
+2. Implement backend filtering by category and impact level
+3. Add navigation header component
+4. Implement loading states and error handling
+
+#### Performance Notes
+- Component rendering optimized for responsive grids
+- CSS custom properties approach works reliably across browsers
+- Category API calls suitable for frontend caching due to infrequent changes
+
+---
 
 ---
 

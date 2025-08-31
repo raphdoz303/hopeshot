@@ -4,6 +4,68 @@
 
 ---
 
+## [0.10.0] - 2025-08-30
+
+### Added
+- **Complete frontend architecture** with homepage and explore page using Next.js and TypeScript
+- **Dynamic category system** fetching standardized categories from database API instead of hardcoded values
+- **Sky & Growth color palette** implemented via CSS variables with custom design system
+- **Responsive component library** including VerticalNewsCard and HorizontalHighlightCard
+- **Interactive filtering interface** with category selection, impact level toggles, and visual feedback
+- **Homepage hero section** with top 3 articles from last 7 days in horizontal highlight format
+- **Database-driven category migration** to 8 standardized categories with visual identity (emojis, colors, filter names)
+- **Frontend API integration** with /api/categories endpoint for dynamic category metadata
+- **Component testing infrastructure** with dedicated test-cards page for UI development
+
+### Changed
+- **Category system architecture** from auto-generated to standardized 8-category system with proper naming
+- **Database schema enhancement** adding filter_name and accent columns for frontend display
+- **Gemini prompt configuration** updated to use exact standardized category names
+- **Frontend styling approach** from Tailwind config to CSS variables due to v4 compatibility
+- **Development workflow** to component-first approach with mock data before backend integration
+
+### Fixed
+- **Database service connection handling** for get_all_categories method using proper connection patterns
+- **Google Sheets integration stability** after tab renaming issues
+- **Tailwind CSS v4 compatibility** by switching to CSS custom properties approach
+- **Component state management** with proper TypeScript interfaces and error handling
+
+### Technical
+- **8-category standardized system**: science tech, health, environment, social progress, education, human kindness, diplomacy, culture
+- **Component-based architecture**: Reusable cards with props-driven customization and category color integration
+- **CSS custom properties**: Complete Sky & Growth palette with neutral, sky, growth, and sun color scales
+- **Database migration utilities**: Scripts for schema updates and category standardization
+- **Frontend state management**: React hooks for API integration and interactive filtering
+
+### Architecture
+- **Frontend service layer**: Separation between presentation components and API integration logic
+- **Design system implementation**: Consistent color usage, typography, and spacing patterns
+- **Progressive enhancement**: Mock data development with clear API integration points
+- **Component composition patterns**: Reusable cards adaptable for different page layouts
+
+### Dependencies
+- **Frontend**: No new dependencies (leveraged existing Next.js/React/TypeScript stack)
+- **Backend**: No new dependencies (used existing SQLite and service architecture)
+
+### Performance
+- **Component rendering**: Optimized for responsive grid layouts and dynamic styling
+- **API efficiency**: Category metadata cached locally after initial fetch
+- **Development experience**: Hot reloading works seamlessly with component updates
+
+### User Experience
+- **Visual consistency**: Categories have unique colors, emojis, and clean filter names
+- **Interactive feedback**: Filter buttons show selected state with category accent colors
+- **Responsive design**: 1/2/3 column grid adapts to screen size
+- **Clear information hierarchy**: Impact levels, dates, sources, and categories clearly displayed
+
+### Notes
+- **Frontend ready for real data**: Components designed with proper interfaces for backend integration
+- **Filter functionality designed**: UI complete but needs backend query integration for actual filtering
+- **Navigation system needed**: Pages exist but no header/menu system yet
+- **Error handling basic**: Console logging implemented but no user-facing error states yet
+
+---
+
 ## [0.9.0] - 2025-08-29
 
 ### Added
