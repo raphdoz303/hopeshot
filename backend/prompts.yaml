@@ -19,7 +19,7 @@ v1_comprehensive:
         "relief": float (0-1),
         "joy": float (0-1)
       }},
-      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "categories": ["1 or 2 from: science tech, health, environment, social progress, education, human kindness, diplomacy, culture"],
       "source_credibility": "high" | "medium" | "low",
       "fact_checkable_claims": "yes" | "no",
       "evidence_quality": "strong" | "moderate" | "weak",
@@ -34,7 +34,15 @@ v1_comprehensive:
     }}
 
     EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
-    CATEGORIES: Suggest 1-3 organically (medical, tech, environment, social, etc.)
+    CATEGORIES: Must be selected strictly from the provided list. Assign 1 or 2 categories max.
+      • science tech → breakthroughs, inventions, space, AI, research, discoveries.  
+      • health → medical progress, wellbeing, mental health, public health improvements.  
+      • environment → climate action, conservation, renewable energy, biodiversity recovery.  
+      • social progress → equality, inclusion, policy changes, social justice improvements.  
+      • education → access to learning, teaching methods, scholarships, edtech.  
+      • human kindness → acts of generosity, rescues, donations, everyday hero stories.  
+      • diplomacy → peace agreements, negotiations, conflict resolution, cooperation between nations.  
+      • culture → arts, heritage, creativity, festivals, inspiring cultural projects. 
     REASONING: Maximum 5 words to minimize tokens
     GEOGRAPHY: Level (Global, Regional, Local) and specific locations if applicable (World, continents or countries - can be multi choice)
 
@@ -64,7 +72,7 @@ v2_precision:
         "relief": float (0-1),
         "joy": float (0-1)
       }},
-      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "categories": ["1 or 2 from: science tech, health, environment, social progress, education, human kindness, diplomacy, culture"],
       "source_credibility": "high" | "medium" | "low",
       "fact_checkable_claims": "yes" | "no",
       "evidence_quality": "strong" | "moderate" | "weak",
@@ -115,7 +123,7 @@ v3_empathy_depth:
         "relief": float (0-1),
         "joy": float (0-1)
       }},
-      "categories": ["1 to 3 from: health, technology, environment, education, social, human rights, scientific discovery"],
+      "categories": ["1 or 2 from: science tech, health, environment, social progress, education, human kindness, diplomacy, culture"],
       "source_credibility": "high" | "medium" | "low",
       "fact_checkable_claims": "yes" | "no",
       "evidence_quality": "strong" | "moderate" | "weak",

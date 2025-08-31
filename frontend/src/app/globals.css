@@ -5,12 +5,58 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  
+  /* Sky & Growth Color Palette */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F7F9FB;
+  --neutral-100: #EDF2F7;
+  --neutral-300: #CBD5E1;
+  --neutral-600: #475569;
+  --neutral-900: #0F172A;
+  
+  --sky-50: #EAF6FF;
+  --sky-100: #D6EEFF;
+  --sky-300: #9AD2FF;
+  --sky-500: #3BA3FF;
+  --sky-700: #1D6FD1;
+  
+  --growth-50: #EAFBF1;
+  --growth-100: #D4F6E3;
+  --growth-300: #8DE7B6;
+  --growth-500: #22C55E;
+  --growth-700: #16A34A;
+  
+  --sun-50: #FFFBEA;
+  --sun-300: #FFE08A;
+  --sun-500: #FFC53D;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Sky & Growth utility classes */
+.bg-sky-50 { background-color: var(--sky-50); }
+.bg-growth-50 { background-color: var(--growth-50); }
+.bg-gradient-sky-growth { 
+  background: linear-gradient(135deg, var(--sky-50), var(--growth-50));
+}
+.text-sky-700 { color: var(--sky-700); }
+.text-growth-700 { color: var(--growth-700); }
 
 @media (prefers-color-scheme: dark) {
   :root {
