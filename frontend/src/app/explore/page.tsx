@@ -1,113 +1,66 @@
 // app/explore/page.tsx
 'use client'
-import { useState, useEffect } from 'react'
 import VerticalNewsCard from '../../components/VerticalNewsCard'
-
-// Interface for category from API
-interface Category {
-  id: number
-  name: string
-  filter_name: string
-  emoji: string
-  description: string
-  color: string
-  accent: string
-}
-
-// Mock data for now - we'll connect to your API later
-const mockArticles = [
-  {
-    title: "Revolutionary Gene Therapy Restores Vision in Blind Patients",
-    description: "Scientists at Johns Hopkins have successfully restored partial vision to patients with inherited blindness using a groundbreaking gene therapy approach.",
-    url: "https://example.com/gene-therapy-breakthrough",
-    source: { name: "AFP" },
-    publishedAt: "2025-08-29T10:30:00Z",
-    gemini_analysis: {
-      categories: ["health", "science tech"],
-      geographical_impact_level: "Global" as const,
-      geographical_impact_location_names: ["USA", "World"]
-    }
-  },
-  {
-    title: "Community Garden Initiative Transforms Urban Food Access",
-    description: "Local volunteers in Detroit have created 50 new community gardens this year, providing fresh produce to food-insecure neighborhoods.",
-    url: "https://example.com/community-gardens",
-    source: { name: "NewsAPI" },
-    publishedAt: "2025-08-28T15:45:00Z",
-    gemini_analysis: {
-      categories: ["social progress", "environment"],
-      geographical_impact_level: "Local" as const,
-      geographical_impact_location_names: ["Detroit", "USA"]
-    }
-  },
-  {
-    title: "New Solar Panel Technology Achieves Record Efficiency",
-    description: "Researchers have developed solar panels that convert 47% of sunlight into electricity, nearly doubling current rates.",
-    url: "https://example.com/solar-breakthrough",
-    source: { name: "NewsData" },
-    publishedAt: "2025-08-27T09:15:00Z",
-    gemini_analysis: {
-      categories: ["science tech", "environment"],
-      geographical_impact_level: "Global" as const,
-      geographical_impact_location_names: ["Germany", "Europe"]
-    }
-  },
-  {
-    title: "Students Develop Low-Cost Water Purification System",
-    description: "University students in Kenya have created an affordable water purification device that could help rural communities access clean drinking water.",
-    url: "https://example.com/water-purification",
-    source: { name: "AFP" },
-    publishedAt: "2025-08-26T14:20:00Z",
-    gemini_analysis: {
-      categories: ["education", "science tech", "health"],
-      geographical_impact_level: "Regional" as const,
-      geographical_impact_location_names: ["Kenya", "Africa"]
-    }
-  }
-]
+import { useNews } from '../../../hooks/useNews'
+import { Article, Category } from '../../../services/api'
 
 export default function ExplorePage() {
-  const [articles, setArticles] = useState(mockArticles)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [selectedImpact, setSelectedImpact] = useState<string[]>(['Global', 'Regional'])
+  const {
+    filteredArticles,
+    categories,
+    loading,
+    categoriesLoading,
+    error,
+    selectedCategories,
+    selectedImpacts,
+    toggleCategory,
+    toggleImpact,
+    refreshNews,
+    totalArticles,
+    isFiltered
+  } = useNews(20)
 
-  // Fetch categories from API
-  useEffect(() => {
-    console.log('Fetching categories from API...')
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/categories')
-        const data = await response.json()
-        
-        console.log('Categories response:', data)
-        
-        if (data.status === 'success') {
-          setCategories(data.categories)
-          console.log('Categories set:', data.categories)
-        }
-      } catch (error) {
-        console.error('Failed to fetch categories:', error)
-      }
-    }
-
-    fetchCategories()
-  }, [])
-
-  const toggleCategory = (categoryName: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(categoryName) 
-        ? prev.filter(cat => cat !== categoryName)
-        : [...prev, categoryName]
+  // Loading state
+  if (loading && filteredArticles.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-sky-growth">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500 mx-auto"></div>
+            <p className="mt-4 text-lg" style={{ color: 'var(--neutral-600)' }}>
+              Loading positive news...
+            </p>
+          </div>
+        </div>
+      </div>
     )
   }
 
-  const toggleImpact = (impact: string) => {
-    setSelectedImpact(prev => 
-      prev.includes(impact) 
-        ? prev.filter(imp => imp !== impact)
-        : [...prev, impact]
+  // Error state
+  if (error && filteredArticles.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-sky-growth">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="text-center">
+            <p className="text-lg font-medium" style={{ color: 'var(--neutral-900)' }}>
+              Unable to load news
+            </p>
+            <p className="mt-2 text-sm" style={{ color: 'var(--neutral-600)' }}>
+              {error}
+            </p>
+            <button
+              onClick={refreshNews}
+              className="mt-4 px-4 py-2 rounded-lg font-medium"
+              style={{ 
+                backgroundColor: 'var(--sky-500)',
+                color: 'white'
+              }}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -116,12 +69,30 @@ export default function ExplorePage() {
       {/* Header */}
       <div className="bg-white border-b" style={{ borderBottomColor: 'var(--neutral-100)' }}>
         <div className="max-w-6xl mx-auto px-6 py-6">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-            🗞️ Explore Positive News
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--neutral-600)' }}>
-            Discover constructive stories from around the world
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                Explore Positive News
+              </h1>
+              <p className="text-sm mt-1" style={{ color: 'var(--neutral-600)' }}>
+                Discover constructive stories from around the world
+              </p>
+            </div>
+            
+            {/* Refresh button */}
+            <button
+              onClick={refreshNews}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors"
+              style={{
+                borderColor: 'var(--neutral-300)',
+                color: loading ? 'var(--neutral-400)' : 'var(--neutral-700)'
+              }}
+            >
+              <span className={loading ? 'animate-spin' : ''}>↻</span>
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -136,7 +107,14 @@ export default function ExplorePage() {
                 Categories ({categories.length} available)
               </label>
               <div className="flex flex-wrap gap-2">
-                {categories.length > 0 ? categories.map((category) => {
+                {categoriesLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sky-500"></div>
+                    <span className="text-sm" style={{ color: 'var(--neutral-600)' }}>
+                      Loading categories...
+                    </span>
+                  </div>
+                ) : categories.length > 0 ? categories.map((category: Category) => {
                   const isSelected = selectedCategories.includes(category.name)
                   return (
                     <button
@@ -155,7 +133,7 @@ export default function ExplorePage() {
                   )
                 }) : (
                   <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
-                    Loading categories...
+                    No categories available
                   </p>
                 )}
               </div>
@@ -168,7 +146,7 @@ export default function ExplorePage() {
               </label>
               <div className="flex gap-2">
                 {['Global', 'Regional', 'Local'].map((impact) => {
-                  const isSelected = selectedImpact.includes(impact)
+                  const isSelected = selectedImpacts.includes(impact)
                   return (
                     <button
                       key={impact}
@@ -215,46 +193,94 @@ export default function ExplorePage() {
         {/* Results meta */}
         <div className="mb-6">
           <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
-            {articles.length} results • last 7 days • 
+            {filteredArticles.length} of {totalArticles} results • last 7 days • 
             {selectedCategories.length > 0 
               ? ` categories: ${selectedCategories.join(', ')}` 
               : ' all categories'}
-            {selectedImpact.length > 0 && selectedImpact.length < 3 
-              ? ` • ${selectedImpact.join(', ').toLowerCase()} impact` 
+            {selectedImpacts.length > 0 && selectedImpacts.length < 3 
+              ? ` • ${selectedImpacts.join(', ').toLowerCase()} impact` 
               : ''}
           </p>
         </div>
 
-        {/* Article grid - responsive 1/2/3 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {articles.map((article, index) => (
-            <VerticalNewsCard key={index} article={article} />
-          ))}
-        </div>
-
-        {/* Pagination placeholder */}
-        <div className="flex justify-center mt-12">
-          <div className="flex gap-2">
-            <button 
-              className="px-4 py-2 rounded-lg border text-sm font-medium"
-              style={{ 
-                borderColor: 'var(--neutral-300)',
-                color: 'var(--neutral-600)' 
+        {/* No results state */}
+        {filteredArticles.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <p className="text-lg font-medium" style={{ color: 'var(--neutral-900)' }}>
+              No articles match your filters
+            </p>
+            <p className="text-sm mt-2" style={{ color: 'var(--neutral-600)' }}>
+              Try adjusting your category or impact level selections
+            </p>
+            <button
+              onClick={() => {
+                // Clear all filters
+                selectedCategories.forEach((cat: string) => toggleCategory(cat))
+                selectedImpacts.forEach((impact: string) => {
+                  if (!['Global', 'Regional'].includes(impact)) {
+                    toggleImpact(impact)
+                  }
+                })
               }}
-            >
-              ← Previous
-            </button>
-            <button 
-              className="px-4 py-2 rounded-lg text-sm font-medium"
+              className="mt-4 px-4 py-2 rounded-lg font-medium"
               style={{ 
                 backgroundColor: 'var(--sky-500)',
                 color: 'white'
               }}
             >
-              Next →
+              Clear Filters
             </button>
           </div>
-        </div>
+        )}
+
+        {/* Article grid - responsive 1/2/3 columns */}
+        {filteredArticles.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredArticles.map((article: Article, index: number) => (
+              <VerticalNewsCard 
+                key={`${article.url}-${index}`} 
+                article={article} 
+                categories={categories}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Loading more indicator */}
+        {loading && filteredArticles.length > 0 && (
+          <div className="text-center mt-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500 mx-auto"></div>
+            <p className="mt-2 text-sm" style={{ color: 'var(--neutral-600)' }}>
+              Refreshing articles...
+            </p>
+          </div>
+        )}
+
+        {/* Pagination placeholder */}
+        {filteredArticles.length > 0 && !loading && (
+          <div className="flex justify-center mt-12">
+            <div className="flex gap-2">
+              <button 
+                className="px-4 py-2 rounded-lg border text-sm font-medium"
+                style={{ 
+                  borderColor: 'var(--neutral-300)',
+                  color: 'var(--neutral-600)' 
+                }}
+              >
+                ← Previous
+              </button>
+              <button 
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ 
+                  backgroundColor: 'var(--sky-500)',
+                  color: 'white'
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

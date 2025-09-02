@@ -13,7 +13,7 @@ load_dotenv()
 
 class GeminiService:
     def __init__(self):
-        """Initialize Gemini 2.5 Flash-Lite service with multi-location junction table support"""
+        """Initialize Gemini 2.5 Flash-Lite service with direct M49 code integration"""
         self.api_key = os.getenv('GEMINI_API_KEY')
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
@@ -22,7 +22,7 @@ class GeminiService:
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
         
-        # Database connection for location lookup
+        # Database connection for location name lookup
         self.db_path = Path(__file__).parent.parent / 'hopeshot_news.db'
         
         # Rate limits
@@ -40,7 +40,7 @@ class GeminiService:
         self.last_request_time = None
         self.last_reset_date = datetime.now().date()
         
-        print(f"Gemini 2.5 Flash-Lite configured: Multi-location junction table support")
+        print(f"Gemini 2.5 Flash-Lite configured: Direct M49 code integration")
         print(f"Safety limits: {self.requests_per_minute}/min, {self.requests_per_day}/day")
 
     def load_prompt_config(self) -> Dict[str, Any]:
@@ -62,120 +62,54 @@ class GeminiService:
             print(f"Failed to load prompts.yaml: {e}")
             return {}
 
-    def _get_or_create_location(self, location_name: str, level: str, parent_name: str = None) -> Optional[int]:
+    def _get_location_names_by_m49(self, m49_codes: List[int]) -> List[str]:
         """
-        Get location ID from database, create if doesn't exist
-        Auto-creates geographic hierarchy as needed
+        Get location names by M49 codes from database
+        Returns list of location names for display purposes
         """
+        if not m49_codes:
+            return []
+        
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # First, try to find existing location
-            cursor.execute(
-                "SELECT id FROM locations WHERE name = ? AND level = ?", 
-                (location_name, level)
-            )
-            result = cursor.fetchone()
+            # Build query with placeholders for M49 codes
+            placeholders = ','.join('?' for _ in m49_codes)
+            query = f"SELECT name FROM locations WHERE m49_code IN ({placeholders}) ORDER BY hierarchy_level"
             
-            if result:
-                location_id = result[0]
-                conn.close()
-                return location_id
-            
-            # Location doesn't exist, create it
-            parent_id = None
-            if parent_name and parent_name != location_name:
-                # Find or create parent location
-                parent_level = self._get_parent_level(level)
-                if parent_level:
-                    parent_id = self._get_or_create_location(parent_name, parent_level)
-            
-            # Insert new location
-            cursor.execute(
-                "INSERT INTO locations (name, level, parent_id) VALUES (?, ?, ?)",
-                (location_name, level, parent_id)
-            )
-            location_id = cursor.lastrowid
-            conn.commit()
+            cursor.execute(query, m49_codes)
+            results = cursor.fetchall()
             conn.close()
             
-            print(f"Created new location: {location_name} ({level}) with ID {location_id}")
-            return location_id
+            location_names = [row[0] for row in results]
+            return location_names
             
         except Exception as e:
-            print(f"Error with location lookup: {e}")
-            return None
-
-    def _get_parent_level(self, current_level: str) -> Optional[str]:
-        """Get parent level in geographic hierarchy"""
-        hierarchy = {
-            'country': 'region',
-            'region': 'continent'
-        }
-        return hierarchy.get(current_level)
-
-    def _infer_geographic_hierarchy(self, location_name: str, level: str) -> str:
-        """
-        Infer parent location based on common geographic knowledge
-        Simple implementation for common countries/regions
-        """
-        # Common country to region mappings
-        country_to_region = {
-            'Vietnam': 'Southeast Asia',
-            'United States': 'North America', 
-            'USA': 'North America',
-            'France': 'Europe',
-            'Germany': 'Europe',
-            'United Kingdom': 'Europe',
-            'Japan': 'East Asia',
-            'China': 'East Asia',
-            'Brazil': 'South America',
-            'Nigeria': 'Africa',
-            'Australia': 'Oceania',
-            'India': 'South Asia',
-            'Canada': 'North America'
-        }
-        
-        region_to_continent = {
-            'Southeast Asia': 'Asia',
-            'East Asia': 'Asia',
-            'South Asia': 'Asia',
-            'North America': 'Americas',
-            'South America': 'Americas',
-            'Europe': 'Europe',
-            'Africa': 'Africa',
-            'Oceania': 'Oceania'
-        }
-        
-        if level == 'country':
-            return country_to_region.get(location_name, 'Unknown Region')
-        elif level == 'region':
-            return region_to_continent.get(location_name, 'Unknown Continent')
-        
-        return 'World'
+            print(f"Error looking up location names: {e}")
+            return []
 
     def _process_geographic_analysis(self, analysis: Dict) -> Dict:
         """
-        Process geographic fields and convert location names to database IDs
-        Handles both single locations and arrays for multi-country stories
+        Process geographic fields from Gemini and prepare M49 codes for direct storage
+        No more location_id conversion - store M49 codes directly
         """
-        # Extract new geographic fields
+        # Extract geographic fields from Gemini response
         impact_level = analysis.get('geographical_impact_level', '')
         impact_location = analysis.get('geographical_impact_location', '')
         
         # Skip processing if no geographic data
         if not impact_level or not impact_location:
             analysis['geographical_impact_level'] = 'Global'
-            analysis['geographical_impact_location_ids'] = []
-            analysis['geographical_impact_location_names'] = []
+            analysis['geographical_impact_m49_codes'] = [1]  # World
+            analysis['geographical_impact_location_names'] = ['World']
             return analysis
         
         # Handle impact level as string or list
         if isinstance(impact_level, list):
             impact_level = impact_level[0] if impact_level else 'Global'
         
-        # Convert impact level to standard format
+        # Standardize impact level
         level_mapping = {
             'global': 'Global',
             'regional': 'Regional', 
@@ -185,45 +119,45 @@ class GeminiService:
         impact_level_str = str(impact_level) if impact_level else 'Global'
         standardized_level = level_mapping.get(impact_level_str.lower(), impact_level_str)
         
-        # Handle locations as array or single value
+        # Handle M49 codes from Gemini (can be strings or integers)
         if isinstance(impact_location, list):
-            location_names = impact_location
+            m49_codes = []
+            for code in impact_location:
+                try:
+                    # Convert to integer (handles both "001" and 1)
+                    m49_int = int(str(code).strip())
+                    m49_codes.append(m49_int)
+                except (ValueError, TypeError):
+                    print(f"Invalid M49 code from Gemini: {code}")
+                    continue
         else:
-            location_names = [impact_location] if impact_location else []
+            try:
+                m49_int = int(str(impact_location).strip())
+                m49_codes = [m49_int]
+            except (ValueError, TypeError):
+                print(f"Invalid M49 code from Gemini: {impact_location}")
+                m49_codes = [1]  # Default to World
         
-        # Process each location and get database IDs
-        location_ids = []
-        processed_names = []
+        # Remove duplicates and limit to 3 codes max
+        m49_codes = list(set(m49_codes))[:3]
         
-        for location_name in location_names:
-            location_str = str(location_name).strip() if location_name else ''
-            
-            if location_str and location_str.lower() not in ['world', 'global', 'none', '']:
-                # Determine database level from impact level
-                db_level = self._impact_level_to_db_level(standardized_level)
-                if db_level:
-                    parent_name = self._infer_geographic_hierarchy(location_str, db_level)
-                    location_id = self._get_or_create_location(location_str, db_level, parent_name)
-                    if location_id:
-                        location_ids.append(location_id)
-                        processed_names.append(location_str)
+        # If no valid codes, default to World
+        if not m49_codes:
+            m49_codes = [1]
+        
+        # Look up location names for display
+        location_names = self._get_location_names_by_m49(m49_codes)
         
         # Update analysis with processed data
         analysis['geographical_impact_level'] = standardized_level
-        analysis['geographical_impact_location_ids'] = location_ids  # Array of IDs for junction table
-        analysis['geographical_impact_location_names'] = processed_names  # Array of names for display
+        analysis['geographical_impact_m49_codes'] = m49_codes  # Direct M49 codes for storage
+        analysis['geographical_impact_location_names'] = location_names  # Names for display
+        
+        # Remove old fields to clean up response
+        analysis.pop('geographical_impact_location', None)
+        analysis.pop('geographical_impact_location_ids', None)
         
         return analysis
-
-    def _impact_level_to_db_level(self, impact_level: str) -> Optional[str]:
-        """Map geographical impact level to database location level"""
-        mapping = {
-            'National': 'country',
-            'Regional': 'region', 
-            'Local': 'country',  # Local impact usually within a country
-            'Global': None  # Global doesn't need specific location
-        }
-        return mapping.get(impact_level)
 
     def _reset_counters_if_needed(self):
         """Reset minute and daily counters when time periods change"""
@@ -369,7 +303,7 @@ Now analyze these articles using each approach below. Return your complete respo
                 # Parse multi-prompt response
                 batch_results = self._parse_combined_response(response.text, prompt_configs, batch_size)
                 
-                # Process geographic data for all prompt results
+                # Process geographic data for all prompt results (NEW M49 PROCESSING)
                 for version_key, version_results in batch_results.items():
                     for analysis in version_results:
                         analysis = self._process_geographic_analysis(analysis)
@@ -412,76 +346,6 @@ Now analyze these articles using each approach below. Return your complete respo
                 "status": "error",
                 "message": f"Multi-prompt analysis failed: {str(e)}"
             }
-
-    def _process_geographic_analysis(self, analysis: Dict) -> Dict:
-        """
-        Process geographic fields and convert location names to database IDs
-        Handles both single locations and arrays for multi-country stories
-        """
-        # Extract new geographic fields with safe handling
-        impact_level = analysis.get('geographical_impact_level', '')
-        impact_location = analysis.get('geographical_impact_location', '')
-        
-        # Skip processing if no geographic data
-        if not impact_level or not impact_location:
-            analysis['geographical_impact_level'] = 'Global'
-            analysis['geographical_impact_location_ids'] = []
-            analysis['geographical_impact_location_names'] = []
-            return analysis
-        
-        # Handle impact level as string or list (safe conversion)
-        if isinstance(impact_level, list):
-            impact_level = impact_level[0] if impact_level else 'Global'
-        
-        # Convert impact level to standard format with safe string handling
-        level_mapping = {
-            'global': 'Global',
-            'regional': 'Regional', 
-            'national': 'National',
-            'local': 'Local'
-        }
-        
-        impact_level_str = str(impact_level).strip() if impact_level else 'Global'
-        standardized_level = level_mapping.get(impact_level_str.lower(), impact_level_str)
-        
-        # Handle locations as array or single value
-        if isinstance(impact_location, list):
-            location_names = [str(loc).strip() for loc in impact_location if loc]
-        else:
-            location_str = str(impact_location).strip() if impact_location else ''
-            location_names = [location_str] if location_str else []
-        
-        # Process each location and get database IDs
-        location_ids = []
-        processed_names = []
-        
-        for location_name in location_names:
-            if location_name and location_name.lower() not in ['world', 'global', 'none', '']:
-                # Determine database level from impact level
-                db_level = self._impact_level_to_db_level(standardized_level)
-                if db_level:
-                    parent_name = self._infer_geographic_hierarchy(location_name, db_level)
-                    location_id = self._get_or_create_location(location_name, db_level, parent_name)
-                    if location_id:
-                        location_ids.append(location_id)
-                        processed_names.append(location_name)
-        
-        # Update analysis with processed data (arrays for junction table support)
-        analysis['geographical_impact_level'] = standardized_level
-        analysis['geographical_impact_location_ids'] = location_ids  # Array of IDs for junction table
-        analysis['geographical_impact_location_names'] = processed_names  # Array of names for display
-        
-        return analysis
-
-    def _impact_level_to_db_level(self, impact_level: str) -> Optional[str]:
-        """Map geographical impact level to database location level"""
-        mapping = {
-            'National': 'country',
-            'Regional': 'region', 
-            'Local': 'country',  # Local impact usually within a country
-            'Global': None  # Global doesn't need specific location
-        }
-        return mapping.get(impact_level)
 
     def _parse_combined_response(self, response_text: str, prompt_configs: Dict, expected_count: int) -> Dict[str, List[Dict]]:
         """Parse Gemini's combined multi-prompt response"""
@@ -530,13 +394,13 @@ Now analyze these articles using each approach below. Return your complete respo
             }
     
     def _create_fallback_results(self, count: int) -> List[Dict]:
-        """Create fallback results with NEW geographic schema when parsing fails"""
+        """Create fallback results with M49 codes when parsing fails"""
         return [{
             "article_index": i,
             "sentiment": "neutral",
             "confidence_score": 0.5,
             "emotions": {"hope": 0.0, "awe": 0.0, "gratitude": 0.0, "compassion": 0.0, "relief": 0.0, "joy": 0.0},
-            "categories": ["unknown"],
+            "categories": ["culture"],
             "source_credibility": "medium",
             "fact_checkable_claims": "unknown",
             "evidence_quality": "moderate",
@@ -545,18 +409,18 @@ Now analyze these articles using each approach below. Return your complete respo
             "age_appropriate": "all",
             "truth_seeking": "no",
             "geographical_impact_level": "Global",
-            "geographical_impact_location": ["World"],
+            "geographical_impact_location": ["001"],  # World M49 code
             "overall_hopefulness": 0.0,
             "reasoning": "Parsing failed"
         } for i in range(count)]
 
     async def test_connection(self) -> Dict[str, Any]:
-        """Test Gemini connection with geographic processing"""
+        """Test Gemini connection with M49 processing"""
         try:
             response = self.model.generate_content("Respond with 'Connected' if working.")
             return {
                 "status": "success",
-                "message": "Gemini connected successfully with multi-location support",
+                "message": "Gemini connected successfully with direct M49 integration",
                 "response": response.text.strip(),
                 "database_path": str(self.db_path),
                 "database_exists": self.db_path.exists()
@@ -574,5 +438,5 @@ Now analyze these articles using each approach below. Return your complete respo
             "requests_today": self.daily_requests,
             "requests_remaining_today": max(0, self.requests_per_day - self.daily_requests),
             "can_make_request_now": self.can_make_request()["can_proceed"],
-            "schema_version": "geographic_v3_multi_location"
+            "schema_version": "m49_direct_integration_v1"
         }

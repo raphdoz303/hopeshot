@@ -1,6 +1,6 @@
 # prompts.yaml - A/B Testing Configuration
 v1_comprehensive:
-  name: "Current Comprehensive Analysis"
+  name: "Current Comprehensive Analysis V2"
   active: true
   description: "Detailed analysis with all fields - baseline version"
   prompt: |
@@ -28,23 +28,71 @@ v1_comprehensive:
       "age_appropriate": "all" | "adults",
       "truth_seeking": "yes" | "no",
       "geographical_impact_level": "Global" | "Regional" | "Local",
-      "geographical_impact_location": ["Example: USA", "Canada", "Europe", "Asia", "Africa", "Global"],
+      "geographical_impact_location": ["UN M49 codes only - Example: 876", "001", "154", "035", "704", "002"],
       "overall_hopefulness": float (0-1),
       "reasoning": "Brief 15 words summary of key factors"
     }}
 
-    EMOTION FOCUS: hope, awe, gratitude, compassion, relief, joy (0.0-1.0)
-    CATEGORIES: Must be selected strictly from the provided list. Assign 1 or 2 categories max.
-      • science tech → breakthroughs, inventions, space, AI, research, discoveries.  
-      • health → medical progress, wellbeing, mental health, public health improvements.  
-      • environment → climate action, conservation, renewable energy, biodiversity recovery.  
-      • social progress → equality, inclusion, policy changes, social justice improvements.  
-      • education → access to learning, teaching methods, scholarships, edtech.  
-      • human kindness → acts of generosity, rescues, donations, everyday hero stories.  
-      • diplomacy → peace agreements, negotiations, conflict resolution, cooperation between nations.  
-      • culture → arts, heritage, creativity, festivals, inspiring cultural projects. 
-    REASONING: Maximum 5 words to minimize tokens
-    GEOGRAPHY: Level (Global, Regional, Local) and specific locations if applicable (World, continents or countries - can be multi choice)
+    INSTRUCTIONS:
+    1. MISSION ALIGNMENT:
+      • Hopefulness reflects **tangible positive impact on society, environment, or human conditions**, NOT just positive tone.
+      • Do not adjust scores based on other articles in the batch. Apply the same scale consistently across all batches, even if all stories seem positive.
+      • Assign low hope (<0.3) for:
+        - Sports competitions, player fitness, or match previews unless linked to charity or social causes.
+        - Cultural or national celebrations that do not create new benefits for people.
+        - Entertainment, awards, celebrity news, or symbolic events without real change.
+      • Assign moderate to high hope (>0.5) only for:
+        - Measurable improvements in health, education, equality, environment, technology or laws that benefit people and the planet.
+      • Examples:
+        • Sports team funds education → good score (>0.5). Team wins match → bad score (<0.5)
+        • Meta uses renewable energy for AI datacenters → good score (>0.5). Meta gains 3 points on the stock market → bad score (<0.5)
+        - "Player returns from injury" → hope=0.2
+        - "City builds new homeless shelters" → hope=0.7
+        - "Global malaria vaccine rollout" → hope=0.9
+
+    2. IMPACT OVER EVENT:
+      • Long-term impact with lasting improvements for people or planet → greater hope (>0.8)
+      • Short-term impact → lower hope (0.5≤ hope ≤0.8).
+    3. EMOTIONS:
+      • Base emotions on the text meaning or impact, not hype or sensational tone.
+    4. CATEGORIES:
+      • Choose strictly from the provided list.
+        • science tech → breakthroughs, inventions, space, AI, research, discoveries.  
+        • health → medical progress, wellbeing, mental health, public health improvements.  
+        • environment → climate action, conservation, renewable energy, biodiversity recovery.  
+        • social progress → equality, inclusion, policy changes, social justice improvements.  
+        • education → access to learning, teaching methods, scholarships, edtech.  
+        • human kindness → acts of generosity, rescues, donations, everyday hero stories.  
+        • diplomacy → peace agreements, negotiations, conflict resolution, cooperation between nations.  
+        • culture → arts, heritage, creativity, festivals, inspiring cultural projects.
+    5. HOPEFULNESS:
+      • Do not exceed 0.3 if article is symbolic, entertainment, or sports-related without measurable social benefit.
+        • 0.5–0.8 for smaller but real progress.
+        • >0.8 for systemic or large-scale improvements with lasting benefits.
+    6. GEOGRAPHICAL IMPACT:
+      • Think about the geographical impact rather than the scope of the event.
+      • Always choose the most specific level that accurately represents the story scope & impact.
+      • Use M49 codes. Max 3 locations.
+          1. If story affects specific countries, list those countries by using M49 codes (Ex: USA=840, Indonesia=360, Japan=392, Vietnam=704, France=250)
+          2. If story affects a defined region, use region code (Ex; South America=005, Western Asia=145)
+          3. If story affects entire continent, use continent code (Ex: Asia=142, Africa=002)  
+          4. If truly global impact, use "001" for World
+          5. If you don't know the code, use the closest parent region code (Ex: Taiwan=Asia=142, In the sea=World=001)
+    7. SCORING CONSISTENCY:
+      • Score each article using absolute rules, NOT relative to other articles in the batch.
+      • Do not normalize scores based on the positivity or negativity of other items.
+      • Apply the same scale across all batches for global consistency.
+      • REFERENCE SCALE:
+        - Minor good news or symbolic events (sports, awards) → hope ≈ 0.2
+        - Concrete local progress (new school, local clean-up) → hope ≈ 0.6
+        - Major systemic global improvement (vaccine rollout, peace treaty) → hope ≈ 0.9
+      • REFERENCE EXAMPLES:
+        - "Player returns from injury" → hope=0.2
+        - "City builds new homeless shelters" → hope=0.7
+        - "Global malaria vaccine rollout" → hope=0.9
+    
+    OUTPUT:
+    - Must be valid JSON with no extra text.  
 
 v2_precision:
   name: "Precision & Schema Strictness"

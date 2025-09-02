@@ -96,7 +96,7 @@ async def get_news(
         if result["status"] != "success":
             return result
             
-        # Multi-prompt Gemini analysis
+        # Multi-prompt Gemini analysis with M49 integration
         if result.get("articles"):
             gemini_service = GeminiService()
             
@@ -113,7 +113,7 @@ async def get_news(
             if new_articles:
                 print(f"📋 Processing {len(new_articles)} new articles ({duplicate_count} duplicates skipped)")
                 
-                # Analyze with all active prompts
+                # Analyze with all active prompts (includes M49 processing)
                 gemini_result = await gemini_service.analyze_articles_batch(new_articles)
                 
                 if gemini_result["status"] == "success":
@@ -164,10 +164,20 @@ async def get_news(
                         "total_analyses": len(articles_for_sheets)
                     }
                     
-                    # For API response: show first prompt's analysis (backward compatibility)
+                    # For API response: show first prompt's analysis with populated location names
                     for i, article in enumerate(result["articles"]):
                         if i < len(first_analyses):
-                            article["gemini_analysis"] = first_analyses[i]
+                            analysis = first_analyses[i]
+                            
+                            # Populate location names if M49 codes exist but names are empty
+                            m49_codes = analysis.get('geographical_impact_m49_codes', [])
+                            location_names = analysis.get('geographical_impact_location_names', [])
+                            
+                            if m49_codes and not location_names:
+                                location_names = database_service.get_location_names_by_m49(m49_codes)
+                                analysis['geographical_impact_location_names'] = location_names
+                            
+                            article["gemini_analysis"] = analysis
                     
                     # Log to Google Sheets (multiple rows per article)
                     try:

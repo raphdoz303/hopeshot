@@ -16,13 +16,13 @@ Root endpoint providing basic API information.
 {
   "message": "Hello from HopeShot backend! 🌟",
   "status": "running",
-  "version": "0.9.0",
+  "version": "0.11.0",
   "features": [
     "Multi-source news aggregation",
-    "SQLite database storage with auto-creation",
+    "SQLite database storage with M49 integration",
     "Google Sheets A/B testing data",
     "Multi-prompt analysis framework",
-    "Geographic hierarchy management"
+    "Direct M49 code storage and hierarchical filtering"
   ]
 }
 ```
@@ -45,7 +45,7 @@ curl "http://localhost:8000/api/categories"
   "status": "success",
   "categories": [
     {
-      "id": 1,
+      "id": 4,
       "name": "science tech",
       "filter_name": "Science & Tech",
       "emoji": "🔬",
@@ -54,7 +54,7 @@ curl "http://localhost:8000/api/categories"
       "accent": "#00A7C4"
     },
     {
-      "id": 2,
+      "id": 5,
       "name": "health",
       "filter_name": "Health",
       "emoji": "🩺",
@@ -63,7 +63,7 @@ curl "http://localhost:8000/api/categories"
       "accent": "#0EA5A4"
     },
     {
-      "id": 3,
+      "id": 6,
       "name": "environment",
       "filter_name": "Environment",
       "emoji": "🌱",
@@ -72,7 +72,7 @@ curl "http://localhost:8000/api/categories"
       "accent": "#22C55E"
     },
     {
-      "id": 4,
+      "id": 7,
       "name": "social progress",
       "filter_name": "Social Progress",
       "emoji": "✊",
@@ -81,25 +81,25 @@ curl "http://localhost:8000/api/categories"
       "accent": "#E84E5A"
     },
     {
-      "id": 5,
+      "id": 8,
       "name": "education",
       "filter_name": "Education",
-      "emoji": "📚",
+      "emoji": "🎓",
       "description": "access to learning, teaching methods, scholarships, edtech",
       "color": "#F3F0FF",
       "accent": "#7C3AED"
     },
     {
-      "id": 6,
+      "id": 9,
       "name": "human kindness",
       "filter_name": "Human Kindness",
-      "emoji": "🤝",
+      "emoji": "💖",
       "description": "acts of generosity, rescues, donations, everyday hero stories",
       "color": "#EEF2FF",
       "accent": "#6366F1"
     },
     {
-      "id": 7,
+      "id": 10,
       "name": "diplomacy",
       "filter_name": "Diplomacy",
       "emoji": "🕊️",
@@ -108,10 +108,10 @@ curl "http://localhost:8000/api/categories"
       "accent": "#12B981"
     },
     {
-      "id": 8,
+      "id": 11,
       "name": "culture",
       "filter_name": "Culture",
-      "emoji": "🎨",
+      "emoji": "🎭",
       "description": "arts, heritage, creativity, festivals, inspiring cultural projects",
       "color": "#EAF6FF",
       "accent": "#3BA3FF"
@@ -132,7 +132,7 @@ curl "http://localhost:8000/api/categories"
 ---
 
 ### **GET /api/news**
-Fetch positive news from all available sources with multi-prompt Gemini analysis and dual storage (SQLite database + Google Sheets).
+Fetch positive news from all available sources with multi-prompt Gemini analysis, M49 geographic processing, and dual storage (SQLite database + Google Sheets).
 
 **Query Parameters**:
 - `q` (optional): Search keywords (default: positive keywords per source)
@@ -144,7 +144,7 @@ Fetch positive news from all available sources with multi-prompt Gemini analysis
 curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
 ```
 
-**Enhanced Response with Dual Storage**:
+**Enhanced Response with M49 Integration**:
 ```json
 {
   "status": "success",
@@ -155,15 +155,15 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
   "totalArticles": 5,
   "crossSourceDuplicatesRemoved": 0,
   "gemini_analyzed": true,
-  "prompt_versions": ["v1_comprehensive", "v2_precision", "v3_empathy_depth"],
+  "prompt_versions": ["v1_comprehensive"],
   "database_inserted": 5,
   "sheets_logged": true,
-  "total_logged": 15,
+  "total_logged": 5,
   "gemini_stats": {
-    "total_tokens_used": 3429,
+    "total_tokens_used": 1581,
     "total_batches_processed": 1,
-    "prompt_versions_count": 3,
-    "total_analyses": 15
+    "prompt_versions_count": 1,
+    "total_analyses": 5
   },
   "articles": [
     {
@@ -176,10 +176,11 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
         "name": "Agence France-Presse"
       },
       "author": "Jane Smith",
-      "publishedAt": "2025-08-29T10:30:00Z",
+      "publishedAt": "2025-09-01T10:30:00Z",
       "content": "Full article content preview...",
       "api_source": "afp",
       "gemini_analysis": {
+        "article_index": 0,
         "sentiment": "positive",
         "confidence_score": 0.85,
         "emotions": {
@@ -190,17 +191,17 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
           "relief": 0.3,
           "joy": 0.5
         },
-        "categories": ["medical", "technology"],
+        "categories": ["health", "science tech"],
         "source_credibility": "high",
         "fact_checkable_claims": "yes",
         "evidence_quality": "strong",
         "controversy_level": "low",
         "solution_focused": "yes",
         "age_appropriate": "all",
-        "truth_seeking": "no",
+        "truth_seeking": "yes",
         "geographical_impact_level": "Global",
-        "geographical_impact_location_names": ["World"],
-        "geographical_impact_location_ids": [],
+        "geographical_impact_m49_codes": [840, 124],
+        "geographical_impact_location_names": ["United States", "Canada"],
         "overall_hopefulness": 0.75,
         "reasoning": "Medical breakthrough shows promise"
       }
@@ -209,24 +210,21 @@ curl "http://localhost:8000/api/news?q=medical%20breakthrough&pageSize=5"
 }
 ```
 
-**New Response Fields (v0.9.0)**:
-- `database_inserted`: Number of articles successfully stored in SQLite database
-- `geographical_impact_location_names`: Array of location names for display
-- `geographical_impact_location_ids`: Array of location database IDs for relationships
+**New Response Fields (v0.11.0)**:
+- `geographical_impact_m49_codes`: Array of UN M49 standard codes for precise location identification
+- `geographical_impact_location_names`: Array of location names derived from M49 database lookup
+- `database_inserted`: Number of articles successfully stored in SQLite database with M49 integration
 
-**Dual Storage Strategy**:
-- **SQLite Database**: First prompt results only (clean application data, no duplicates)
-- **Google Sheets**: All prompt results (A/B testing research data with comparative analysis)
-
-**Auto-Creation Features**:
-- Categories automatically created as Gemini discovers them
-- Geographic locations auto-created with hierarchical relationships
-- Junction tables link articles to multiple categories and locations
+**M49 Integration Features**:
+- **Direct Storage**: M49 codes stored in junction table without ID conversion
+- **Hierarchical Support**: Codes support recursive filtering (Asia includes all Asian countries)
+- **Name Resolution**: Location names populated via database JOIN on M49 codes
+- **Multi-Location**: Articles can reference multiple geographic locations
 
 ---
 
 ### **GET /api/sources**
-Get information about all news sources with enhanced database statistics.
+Get information about all news sources with enhanced M49 database statistics.
 
 **Response**:
 ```json
@@ -248,38 +246,29 @@ Get information about all news sources with enhanced database statistics.
       "priority": 2,
       "quality_score": 5,
       "daily_limit": 10
-    },
-    "newsdata": {
-      "name": "NewsData.io",
-      "active": false,
-      "configured": true,
-      "priority": 3,
-      "quality_score": 3,
-      "daily_limit": 5
     }
   },
   "priority_order": ["afp"],
-  "settings": {
-    "total_daily_limit": 30,
-    "min_quality_score": 7,
-    "refresh_interval": "6h",
-    "pagination_size": 10
-  },
   "database_stats": {
-    "articles": 19,
+    "articles": 25,
     "categories": 8,
-    "locations": 12,
-    "category_relationships": 25,
-    "location_relationships": 15,
-    "articles_last_24h": 19,
+    "locations": 278,
+    "category_relationships": 35,
+    "location_relationships": 42,
+    "articles_last_24h": 25,
     "top_categories": [
-      {"name": "social", "count": 8},
-      {"name": "human rights", "count": 6}
+      {"name": "culture", "count": 12},
+      {"name": "social progress", "count": 8}
     ],
     "top_locations": [
-      {"name": "USA", "level": "country", "count": 6},
-      {"name": "Europe", "level": "region", "count": 3}
-    ]
+      {"name": "United States", "level": 5, "m49_code": 840, "count": 8},
+      {"name": "Asia", "level": 2, "m49_code": 142, "count": 6}
+    ],
+    "m49_integration": {
+      "schema_updated": true,
+      "junction_table": "article_locations (article_id, m49_code)",
+      "direct_storage": true
+    }
   }
 }
 ```
@@ -287,7 +276,7 @@ Get information about all news sources with enhanced database statistics.
 ---
 
 ### **GET /api/sources/test**
-Test connection to all configured sources including database and Gemini services.
+Test connection to all configured sources including M49 database integration.
 
 **Response**:
 ```json
@@ -303,35 +292,37 @@ Test connection to all configured sources including database and Gemini services
   },
   "database": {
     "status": "success",
-    "message": "Database connected with multi-location support",
+    "message": "Database connected with direct M49 integration",
     "stats": {
-      "articles": 19,
+      "articles": 25,
       "categories": 8,
-      "locations": 12
+      "locations": 278
     },
-    "junction_table_exists": true
+    "article_locations_schema": ["article_id", "m49_code"],
+    "m49_join_test_count": 42,
+    "schema_version": "m49_direct_v1"
   },
   "gemini": {
     "status": "success",
-    "message": "Gemini connected successfully with multi-location support",
+    "message": "Gemini connected successfully with direct M49 integration",
     "response": "Connected",
     "database_path": "C:\\Users\\User\\hopeshot\\backend\\hopeshot_news.db",
     "database_exists": true
   },
-  "system_status": "All services operational"
+  "system_status": "All services operational with M49 integration"
 }
 ```
 
 ---
 
 ### **GET /health**
-Comprehensive system health check including database statistics and A/B testing framework status.
+Comprehensive system health check including M49 integration status and database statistics.
 
 **Response**:
 ```json
 {
   "status": "healthy",
-  "version": "0.9.0",
+  "version": "0.11.0",
   "sources": {
     "total_configured": 1,
     "available_sources": ["afp"],
@@ -342,32 +333,38 @@ Comprehensive system health check including database statistics and A/B testing 
   "database": {
     "status": "connected",
     "stats": {
-      "articles": 19,
+      "articles": 25,
       "categories": 8,
-      "locations": 12,
-      "category_relationships": 25,
-      "location_relationships": 15,
-      "articles_last_24h": 19,
+      "locations": 278,
+      "category_relationships": 35,
+      "location_relationships": 42,
+      "articles_last_24h": 25,
       "top_categories": [
-        {"name": "social", "count": 8},
-        {"name": "human rights", "count": 6}
+        {"name": "culture", "count": 12},
+        {"name": "social progress", "count": 8}
       ],
       "top_locations": [
-        {"name": "USA", "level": "country", "count": 6},
-        {"name": "Europe", "level": "region", "count": 3}
+        {"name": "United States", "level": 5, "m49_code": 840, "count": 8},
+        {"name": "Asia", "level": 2, "m49_code": 142, "count": 6}
       ],
-      "database_path": "C:\\Users\\User\\hopeshot\\backend\\hopeshot_news.db"
+      "database_path": "C:\\Users\\User\\hopeshot\\backend\\hopeshot_news.db",
+      "m49_integration": {
+        "schema_updated": true,
+        "junction_table": "article_locations (article_id, m49_code)",
+        "direct_storage": true
+      }
     }
   },
   "ab_testing": {
-    "active_prompts": 3,
-    "prompt_versions": ["v1_comprehensive", "v2_precision", "v3_empathy_depth"]
+    "active_prompts": 1,
+    "prompt_versions": ["v1_comprehensive"]
   },
   "system": {
     "environment": "development",
     "python_version": "3.11+",
     "fastapi_status": "running",
-    "storage": "dual (database + sheets)"
+    "storage": "dual (database + sheets)",
+    "geographic_system": "UN M49 direct integration"
   }
 }
 ```
@@ -375,22 +372,26 @@ Comprehensive system health check including database statistics and A/B testing 
 ---
 
 ### **GET /api/test**
-Connection test endpoint for frontend verification with database statistics.
+Connection test endpoint for frontend verification with M49 database statistics.
 
 **Response**:
 ```json
 {
   "message": "Backend connection successful!",
   "data": {
-    "timestamp": "2025-08-29",
+    "timestamp": "2025-09-01",
     "backend_status": "healthy",
     "available_sources": ["afp"],
     "database_stats": {
-      "articles": 19,
+      "articles": 25,
       "categories": 8,
-      "locations": 12,
-      "category_relationships": 25,
-      "location_relationships": 15
+      "locations": 278,
+      "category_relationships": 35,
+      "location_relationships": 42,
+      "m49_integration": {
+        "schema_updated": true,
+        "direct_storage": true
+      }
     }
   }
 }
@@ -398,30 +399,58 @@ Connection test endpoint for frontend verification with database statistics.
 
 ---
 
-## Database Integration Features
+## M49 Geographic Integration Features
 
-### Auto-Creation Capabilities
-- **Categories**: Automatically created as Gemini discovers them in article analysis
-- **Geographic Locations**: Auto-created with hierarchical relationships (country → region → continent)
-- **Junction Relationships**: Many-to-many links established automatically
+### Direct M49 Code Storage
+The system stores UN M49 standard geographic codes directly in junction tables without conversion overhead:
 
-### Multi-Location Support
-Articles can be linked to multiple locations for complex stories:
-```json
-"geographical_impact_location_names": ["USA", "Japan"],
-"geographical_impact_location_ids": [3, 8]
+```sql
+-- Junction table structure
+article_locations:
+- article_id (INTEGER) - Foreign key to articles table
+- m49_code (INTEGER) - UN M49 standard code (840=USA, 392=Japan, 001=World)
+
+-- Example data
+article_id | m49_code
+-----------|----------
+1          | 840      -- Article about USA
+1          | 392      -- Same article also affects Japan
+2          | 001      -- Article with global impact
 ```
 
-### Geographic Hierarchy Queries
-The junction table architecture enables sophisticated geographic filtering:
-- Articles about specific countries: Direct location match
-- Articles about regions: Includes all child countries
-- Articles about continents: Includes all child regions and countries
+### Location Name Resolution
+Location names are populated via database JOIN queries rather than stored redundantly:
 
-### Deduplication Strategy
-- **Hard Check**: URL uniqueness enforced by database constraints
-- **Soft Check**: Title similarity detection (70% threshold) 
-- **Database-First**: Existing URLs checked before Gemini analysis to save API costs
+```sql
+-- API query to populate location names
+SELECT DISTINCT
+    a.title,
+    a.geographical_impact_level,
+    GROUP_CONCAT(l.name) as location_names,
+    GROUP_CONCAT(al.m49_code) as m49_codes
+FROM articles a
+LEFT JOIN article_locations al ON a.id = al.article_id
+LEFT JOIN locations l ON al.m49_code = l.m49_code
+GROUP BY a.id;
+```
+
+### Hierarchical Filtering Support
+The M49 system enables sophisticated geographic filtering:
+
+```sql
+-- Find all articles about "Asia" (includes Vietnam, Japan, etc.)
+WITH RECURSIVE asia_hierarchy AS (
+  SELECT id, name, m49_code FROM locations WHERE m49_code = 142  -- Asia
+  UNION ALL
+  SELECT l.id, l.name, l.m49_code
+  FROM locations l
+  JOIN asia_hierarchy ah ON l.parent_id = ah.id
+)
+SELECT DISTINCT a.*
+FROM articles a
+JOIN article_locations al ON a.id = al.article_id
+JOIN asia_hierarchy ah ON al.m49_code = ah.m49_code;
+```
 
 ---
 
@@ -431,44 +460,95 @@ The junction table architecture enables sophisticated geographic filtering:
 - **AFP**: OAuth2 password grant with automatic token management (5-hour expiry)
 - **Google Sheets**: Service account with JSON credentials file
 - **Gemini**: API key authentication with comprehensive rate limiting for multi-prompt processing
-- **SQLite**: Local file-based database with connection pooling
+- **SQLite**: Local file-based database with M49 junction table integration
 
 ---
 
 ## Error Handling
 
+### M49 Integration Error Patterns
+The system handles various M49-related errors gracefully:
+
+**Missing M49 Codes in Database:**
+```json
+{
+  "geographical_impact_m49_codes": [158],
+  "geographical_impact_location_names": []
+}
+```
+- Occurs when Gemini returns valid M49 codes not present in locations table
+- System stores M49 codes but location name lookup returns empty array
+
+**Invalid M49 Codes from Gemini:**
+```json
+{
+  "geographical_impact_m49_codes": [36],
+  "geographical_impact_location_names": ["Australia"]
+}
+```
+- Gemini returns wrong M49 code (36=Australia instead of 360=Indonesia)
+- System processes whatever Gemini provides, resulting in incorrect location names
+
 ### Database Connection Management
-The system uses connection reuse patterns to prevent database locking during bulk operations:
+The system uses direct M49 storage to eliminate connection overhead:
 ```json
 {
   "database_inserted": 5,
   "sheets_logged": true,
-  "sheets_error": null
+  "m49_codes_stored": [840, 392, 156],
+  "location_names_resolved": 3
 }
 ```
 
 ### Graceful Degradation
 Services fail independently without affecting the overall system:
-- Database failures don't prevent sheets logging
-- Sheets failures don't prevent database storage
-- Individual source failures don't affect other sources
+- M49 lookup failures don't prevent article storage
+- Location name resolution errors don't affect sentiment analysis
+- Individual source failures don't impact other sources
 
 ---
 
 ## Performance Considerations
 
+### M49 Integration Performance
+- **Direct Storage**: No ID conversion overhead during article insertion
+- **Indexed Joins**: M49 codes indexed for fast location name resolution
+- **Batch Processing**: Multiple M49 codes processed efficiently in single queries
+- **Hierarchical Queries**: Recursive CTEs enable complex geographic filtering
+
 ### Rate Limiting with Multi-Prompt A/B Testing
 - **Gemini API**: 14 requests/minute, 900 requests/day with 2-minute batch spacing
-- **Multi-Prompt Overhead**: 3x analysis time for comparative data collection
-- **Database Operations**: Local SQLite with optimized junction table queries
-- **Connection Pooling**: Reused connections prevent lock contention
+- **Multi-Prompt Overhead**: 1x analysis time with combined prompt approach
+- **Database Operations**: Local SQLite with optimized M49 junction table queries
+- **M49 Lookup Performance**: Direct code matching eliminates conversion latency
 
 ### Scaling Implications
-- **Current Capacity**: ~24,000 articles/day with 3 active prompts
-- **Database Performance**: SQLite suitable for single-user applications
-- **Production Scaling**: Consider PostgreSQL for multi-user deployment
+- **Current Capacity**: ~24,000 articles/day with M49 processing and dual storage
+- **Database Performance**: SQLite suitable for single-user applications with M49 indexing
+- **Production Scaling**: Consider PostgreSQL for multi-user deployment with M49 constraints
 
 ---
 
-*Last updated: August 29, 2025*
-*API version: 0.9.0*
+## Known Issues & Data Quality
+
+### M49 Integration Issues
+- **Gemini Code Accuracy**: AI returns incorrect M49 codes (Indonesia→36 instead of 360, Vietnam→100 instead of 704)
+- **Database Coverage**: Not all M49 codes exist in locations table causing name lookup failures
+- **Validation Gap**: No middleware to catch obviously wrong codes before database storage
+- **Prompt Ambiguity**: Geographic instructions need specific M49 examples for better accuracy
+
+### Location Name Resolution
+- **Empty Name Arrays**: Valid M49 codes return empty names when codes missing from locations table
+- **Wrong Code Propagation**: Incorrect M49 codes from Gemini result in wrong location names
+- **Fallback Handling**: No default location names when M49 lookup fails
+
+### Suggested Improvements
+- **M49 Validation Layer**: Pre-insertion validation against known code ranges
+- **Complete Location Import**: Full UN M49 reference data import from provided CSV
+- **Gemini Prompt Enhancement**: Add correct M49 examples and validation instructions
+- **Error Recovery System**: Fallback mechanisms when location resolution fails
+
+---
+
+*Last updated: September 1, 2025*
+*API version: 0.11.0*

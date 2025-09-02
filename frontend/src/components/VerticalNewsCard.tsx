@@ -1,19 +1,8 @@
 // components/VerticalNewsCard.tsx
 import React from 'react'
+import { Category } from '../../services/api'
 
-// Category configuration matching your design specs
-const categoryColors = {
-  science: { bg: '#E6FBFF', text: '#006D7C', accent: '#00A7C4', emoji: '🔬' },
-  rights: { bg: '#FFEDEF', text: '#7A2333', accent: '#E84E5A', emoji: '✊' },
-  society: { bg: '#EEF2FF', text: '#2F327A', accent: '#6366F1', emoji: '🧑‍🤝‍🧑' },
-  environment: { bg: '#EAFBF1', text: '#14532D', accent: '#22C55E', emoji: '🌱' },
-  health: { bg: '#E9FBFB', text: '#0B4A4E', accent: '#0EA5A4', emoji: '🩺' },
-  education: { bg: '#F3F0FF', text: '#3C2E7E', accent: '#7C3AED', emoji: '📚' },
-  economy: { bg: '#EEFDF4', text: '#0B552E', accent: '#12B981', emoji: '📈' },
-  technology: { bg: '#EAF6FF', text: '#103A66', accent: '#3BA3FF', emoji: '🤖' },
-} as const
-
-// Impact level mapping
+// Impact level mapping (this stays the same)
 const impactMap = {
   Global: { emoji: '🌍', chip: '#1D6FD1' }, // sky-700
   Regional: { emoji: '🗺️', chip: '#22C55E' }, // growth-500
@@ -37,13 +26,23 @@ interface Article {
 
 interface VerticalNewsCardProps {
   article: Article
+  categories: Category[]  // Pass categories from parent component
 }
 
-export default function VerticalNewsCard({ article }: VerticalNewsCardProps) {
+export default function VerticalNewsCard({ article, categories }: VerticalNewsCardProps) {
+  // Helper function to find category data by name
+  const getCategoryData = (categoryName: string) => {
+    return categories.find(cat => cat.name === categoryName) || {
+      name: categoryName,
+      emoji: '📰',
+      color: '#F7F9FB',
+      accent: '#475569'
+    }
+  }
+  
   // Get primary category for accent color
-  const primaryCategory = article.gemini_analysis?.categories?.[0] || 'technology'
-  const categoryKey = primaryCategory.toLowerCase() as keyof typeof categoryColors
-  const categoryConfig = categoryColors[categoryKey] || categoryColors.technology
+  const primaryCategoryName = article.gemini_analysis?.categories?.[0] || 'culture'
+  const primaryCategory = getCategoryData(primaryCategoryName)
   
   // Format date
   const formatDate = (dateString: string) => {
@@ -59,7 +58,7 @@ export default function VerticalNewsCard({ article }: VerticalNewsCardProps) {
       {/* Top accent bar */}
       <div 
         className="h-1"
-        style={{ backgroundColor: categoryConfig.accent }}
+        style={{ backgroundColor: primaryCategory.accent }}
       />
       
       <div className="p-4 space-y-3">
@@ -103,14 +102,13 @@ export default function VerticalNewsCard({ article }: VerticalNewsCardProps) {
           </p>
         )}
 
-        {/* Category emojis */}
+        {/* Category emojis - now using real category data */}
         <div className="flex items-center gap-1">
-          {article.gemini_analysis?.categories?.slice(0, 3).map((category, index) => {
-            const catKey = category.toLowerCase() as keyof typeof categoryColors
-            const catConfig = categoryColors[catKey] || categoryColors.technology
+          {article.gemini_analysis?.categories?.slice(0, 3).map((categoryName, index) => {
+            const categoryData = getCategoryData(categoryName)
             return (
-              <span key={index} className="text-lg" aria-label={category}>
-                {catConfig.emoji}
+              <span key={index} className="text-lg" aria-label={categoryData.name}>
+                {categoryData.emoji}
               </span>
             )
           })}

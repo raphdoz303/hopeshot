@@ -437,3 +437,54 @@ frontend/component_performance_*.json
 # - globals.css (color system)
 # - component TypeScript interfaces (tracked)
 # - API endpoint integration (tracked in components)
+
+
+# =============================================================================
+# MIGRATION AND CLEANUP FILES (NEW - v0.11.0)
+# =============================================================================
+
+# Database migration artifacts
+*.backup
+hopeshot_news.db.backup
+simplified_migration.py
+hybrid_migration_script.py
+
+# M49 CSV processing debug files
+m49_import_debug_*.log
+location_import_*.json
+geographic_validation_*.csv
+
+# =============================================================================
+# FRONTEND SERVICE LAYER (NEW - v0.11.0)  
+# =============================================================================
+
+# API service debug files
+frontend/api_debug_*.json
+frontend/service_layer_*.log
+frontend/hooks_debug_*.json
+
+# TypeScript compilation artifacts
+frontend/tsconfig.tsbuildinfo
+frontend/.tsbuildinfo
+
+# Frontend development cache issues
+frontend/.next/cache/
+frontend/node_modules/.cache/
+
+# =============================================================================
+# DATABASE DEBUGGING (UPDATED - v0.11.0)
+# =============================================================================
+
+# M49 integration debug files
+backend/m49_debug_*.py
+backend/location_lookup_*.json
+backend/geographic_test_*.py
+
+# Database inspection scripts
+backend/debug_database.py
+backend/inspect_*.py
+backend/test_m49_*.py
+
+# Junction table debug files
+backend/article_locations_debug_*.sql
+backend/m49_validation_*.log

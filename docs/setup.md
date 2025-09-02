@@ -619,3 +619,185 @@ npm start
 
 *Last updated: August 29, 2025*  
 *Ready for SQLite database integration with multi-location support and auto-creation capabilities!*
+
+
+# UPDATES : NEW - v0.11.0
+
+## Frontend Integration Setup (NEW - v0.11.0)
+
+### 5. Frontend-Backend Integration
+
+After setting up both frontend and backend servers, verify the complete integration:
+
+#### Real Data Connection
+```bash
+# Ensure both servers are running
+# Terminal 1: Backend
+cd backend
+py -m uvicorn main:app --reload --port 8000
+
+# Terminal 2: Frontend  
+cd frontend
+npm run dev
+
+# Verify connection
+curl http://localhost:8000/api/categories
+curl http://localhost:8000/api/news?pageSize=5
+```
+
+#### Service Layer Architecture
+The frontend now uses a modular service layer instead of direct API calls:
+
+**Files Created**:
+- `frontend/services/api.ts` - Centralized API service with TypeScript interfaces
+- `frontend/hooks/useNews.ts` - Custom hook for data management and filtering
+
+**Integration Points**:
+- Categories dynamically loaded from `/api/categories` endpoint
+- Articles fetched from `/api/news` endpoint with real Gemini analysis
+- Loading states and error handling throughout UI
+
+#### TypeScript Configuration
+Ensure your frontend has proper TypeScript setup:
+
+```bash
+# Check TypeScript compilation
+cd frontend
+npx tsc --noEmit  # Should show no errors
+
+# Common import structure for new service layer
+# From: frontend/src/app/explore/page.tsx
+# To hooks: '../../../hooks/useNews'
+# To services: '../../../services/api'
+```
+
+### M49 Geographic System Setup (NEW - v0.11.0)
+
+#### Database Migration for M49 Integration
+```bash
+cd backend
+
+# Run M49 database migration (preserves categories, clears articles)
+py simplified_migration.py
+
+# Import M49 location data from CSV
+py import_m49_csv.py
+
+# Verify M49 integration
+py -c "
+from services.database_service import DatabaseService
+db = DatabaseService()
+result = db.test_connection()
+print('M49 Integration:', result['status'])
+print('Schema:', result.get('article_locations_schema'))
+"
+```
+
+#### M49 CSV Data Import
+Ensure the CSV file is in your backend directory:
+```bash
+# File should be present:
+backend/Countries  Regions  m49 Codes  Sheet1 2.csv
+
+# Contains 278 rows with UN M49 standard data:
+# - m49_code, name, hierarchy_level, impact_level
+# - parent_m49_code, iso_alpha2, iso_alpha3, emoji
+```
+
+### Development Workflow Updates (v0.11.0)
+
+#### Memory Management for Development
+If you experience Node.js memory issues during frontend development:
+
+```bash
+# Clear Next.js cache
+cd frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force node_modules\.cache -ErrorAction SilentlyContinue
+
+# Start with memory allocation if needed
+node --max-old-space-size=4096 ./node_modules/.bin/next dev
+
+# Close unnecessary applications (Chrome tabs, VS Code extensions)
+```
+
+#### Testing Real Data Integration
+```bash
+# Test category API
+curl http://localhost:8000/api/categories
+# Should return 8 categories with emoji, color, accent fields
+
+# Test news API with M49 integration
+curl http://localhost:8000/api/news?pageSize=3
+# Should return articles with geographical_impact_m49_codes and location_names
+
+# Test frontend integration
+http://localhost:3000/explore
+# Should show real articles with category emojis and impact levels
+```
+
+### Troubleshooting Updates (v0.11.0)
+
+#### Frontend Issues
+**Import path errors**:
+```bash
+# Verify your folder structure matches:
+frontend/
+  hooks/useNews.ts
+  services/api.ts  
+  src/app/explore/page.tsx
+```
+
+**TypeScript 'any' parameter errors**:
+```typescript
+// Always use explicit types in callbacks
+articles.map((article: Article, index: number) => ...)
+categories.forEach((categoryName: string) => ...)
+```
+
+**Categories not loading**:
+- Check Network tab in browser dev tools for API calls
+- Verify backend returns 8 categories with all required fields
+- Check browser console for JavaScript errors
+
+#### M49 Integration Issues
+**Empty location names**:
+- Check if M49 codes exist in locations table: `SELECT * FROM locations WHERE m49_code = 158`
+- Verify article_locations junction table populated: `SELECT COUNT(*) FROM article_locations`
+- Check Gemini returning valid M49 codes in API response
+
+**Wrong location names**:
+- Gemini AI accuracy issue (Indonesia→Australia, Vietnam→Bulgaria)
+- Update prompts.yaml with correct M49 examples
+- Consider M49 validation layer in GeminiService
+
+#### Database Schema Issues
+**Foreign key errors during migration**:
+- Use simplified_migration.py instead of hybrid approach
+- Disable foreign keys during migration: `PRAGMA foreign_keys = OFF`
+
+**Missing columns after migration**:
+- Verify article_locations has (article_id, m49_code) columns
+- Check articles table removed geographical_impact_location columns
+
+### Production Considerations (Updated v0.11.0)
+
+#### M49 Data Quality
+- **Complete Location Import**: Ensure all 278 M49 codes imported from CSV
+- **Gemini Prompt Enhancement**: Add correct M49 examples to improve accuracy
+- **Validation Middleware**: Consider M49 code validation before database storage
+
+#### Frontend Build Process
+```bash
+# Production build with service layer
+cd frontend
+npm run build
+npm start
+
+# Verify service layer works in production build
+```
+
+#### Database Performance
+- **M49 Indexes**: Ensure indexes created for m49_code columns
+- **Junction Table Optimization**: article_locations indexed for fast queries
+- **Hierarchical Query Performance**: Recursive CTE queries for geographic filtering

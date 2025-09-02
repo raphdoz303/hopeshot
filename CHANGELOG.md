@@ -4,6 +4,78 @@
 
 ---
 
+## [0.11.0] - 2025-09-01
+
+### Added
+- **Complete frontend-backend integration** with real news articles replacing mock data in explore page
+- **Modular API service layer** with centralized backend communication and TypeScript interfaces
+- **Custom React hook system** (useNews) for data fetching, filtering, and state management
+- **Direct M49 code integration** using UN standard geographic codes in junction tables
+- **Dynamic category system** with real-time emoji and color display from database API
+- **Enhanced location architecture** storing M49 codes directly without ID conversion overhead
+- **Client-side filtering** with real category and impact level data from backend
+- **Loading states and error handling** for all API calls with graceful degradation
+- **TypeScript interface standardization** matching backend response structures exactly
+
+### Changed
+- **VerticalNewsCard component** from hardcoded category mappings to dynamic API data lookup
+- **Database schema architecture** to use direct M49 code storage in article_locations junction table
+- **GeminiService geographic processing** to handle M49 codes as primary identifiers
+- **DatabaseService article insertion** to populate M49 codes in junction table directly
+- **API response structure** to include M49 codes and database-derived location names
+- **Frontend data flow** from mock articles to real API integration with error boundaries
+
+### Fixed
+- **Category emoji display issues** by connecting frontend components to real category database
+- **TypeScript 'any' parameter errors** with explicit type annotations throughout frontend
+- **Import path errors** in frontend modules due to folder structure mismatches
+- **Memory allocation crashes** in Node.js development server through cache clearing
+- **Foreign key constraint errors** in SQLite migration using simplified table creation
+
+### Technical
+- **M49 Direct Storage**: article_locations(article_id, m49_code) without location_id conversion
+- **Service Layer Pattern**: ApiService class with error handling and type safety
+- **Custom Hook Architecture**: useNews() managing articles, categories, and filtering state
+- **Dynamic Component Integration**: Category data passed as props for real-time updates
+- **Database Migration Strategy**: Hybrid approach preserving categories while updating location schema
+
+### Architecture
+- **Frontend Service Separation**: API logic isolated from UI components for maintainability
+- **M49 Standard Compliance**: UN geographic codes for international location identification
+- **Junction Table Optimization**: Direct code storage eliminates lookup overhead
+- **Type-Safe Development**: Complete TypeScript interfaces prevent runtime errors
+- **Modular Component Design**: Cards receive category data dynamically instead of hardcoded mappings
+
+### Dependencies
+- **Frontend**: No new dependencies (leveraged existing Next.js/React/TypeScript stack)
+- **Backend**: No new dependencies (enhanced existing SQLite and service architecture)
+
+### Performance
+- **M49 Integration**: Direct code storage eliminates ID conversion during article insertion
+- **Frontend Optimization**: Client-side filtering provides immediate response to user interactions
+- **Database Indexing**: M49 codes indexed for fast hierarchical geographic queries
+- **API Efficiency**: Single request populates location names via JOIN queries
+
+### User Experience
+- **Real Data Display**: News articles from actual backend sources with authentic metadata
+- **Dynamic Category Filtering**: Filter buttons show real categories with correct emojis and colors
+- **Loading States**: Visual feedback during API calls with error recovery options
+- **Geographic Accuracy**: Location information based on UN M49 standard (when Gemini accurate)
+
+### Known Issues
+- **Gemini M49 Accuracy**: AI returns incorrect country codes (Indonesia→Australia, Vietnam→Bulgaria)
+- **Location Name Gaps**: Missing M49 codes in database cause empty location name arrays
+- **Backend Filtering Missing**: Frontend does client-side filtering, backend doesn't support category/impact queries yet
+- **Validation Layer Needed**: No middleware to catch obviously wrong M49 codes before storage
+
+### Notes
+- **Database Strategy**: Hybrid migration preserved existing categories and locations while updating architecture
+- **Development Workflow**: Memory management required during frontend development due to Node.js limitations
+- **M49 Integration Ready**: Foundation established for hierarchical geographic filtering (Asia → Vietnam articles)
+- **Service Architecture**: Clean separation enables independent updates to API, state management, and UI layers
+
+---
+
 ## [0.10.0] - 2025-08-30
 
 ### Added

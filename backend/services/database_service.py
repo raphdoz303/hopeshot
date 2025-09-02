@@ -6,7 +6,7 @@ from datetime import datetime
 
 class DatabaseService:
     def __init__(self):
-        """Initialize database service with multi-location junction table support"""
+        """Initialize database service with direct M49 code integration"""
         self.db_path = Path(__file__).parent.parent / 'hopeshot_news.db'
         
         if not self.db_path.exists():
@@ -105,60 +105,34 @@ class DatabaseService:
             if own_connection:
                 conn.close()
 
-    def get_or_create_location(self, name: str, level: str, parent_name: str = None) -> Optional[int]:
-        """
-        Get location ID, create if doesn't exist with hierarchy
-        This mirrors the GeminiService location logic
-        """
+    def get_location_names_by_m49(self, m49_codes: List[int]) -> List[str]:
+        """Get location names by M49 codes for API response display"""
+        if not m49_codes:
+            return []
+            
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
             
-            # Check if location exists
-            cursor.execute("SELECT id FROM locations WHERE name = ? AND level = ?", (name, level))
-            result = cursor.fetchone()
+            # Build query with placeholders
+            placeholders = ','.join('?' for _ in m49_codes)
+            query = f"SELECT name FROM locations WHERE m49_code IN ({placeholders}) ORDER BY hierarchy_level"
             
-            if result:
-                location_id = result[0]
-                conn.close()
-                return location_id
-            
-            # Find or create parent if needed
-            parent_id = None
-            if parent_name and parent_name != name:
-                parent_level = self._get_parent_level(level)
-                if parent_level:
-                    parent_id = self.get_or_create_location(parent_name, parent_level)
-            
-            # Create new location
-            cursor.execute(
-                "INSERT INTO locations (name, level, parent_id) VALUES (?, ?, ?)",
-                (name, level, parent_id)
-            )
-            location_id = cursor.lastrowid
-            conn.commit()
+            cursor.execute(query, m49_codes)
+            results = cursor.fetchall()
             conn.close()
             
-            print(f"Created new location: {name} ({level}) with ID {location_id}")
-            return location_id
+            return [row[0] for row in results]
             
         except Exception as e:
-            print(f"Error with location creation: {e}")
-            return None
-
-    def _get_parent_level(self, current_level: str) -> Optional[str]:
-        """Get parent level in geographic hierarchy"""
-        hierarchy = {
-            'country': 'region',
-            'region': 'continent'
-        }
-        return hierarchy.get(current_level)
+            print(f"Error looking up location names: {e}")
+            return []
 
     def insert_article(self, article: Dict[str, Any], gemini_analysis: Dict[str, Any], 
                       prompt_version: str = None, prompt_name: str = None) -> Optional[int]:
         """
-        Insert article with Gemini analysis into database
-        Auto-creates categories and handles multi-location arrays
+        Insert article with Gemini analysis using direct M49 code storage
+        No more location_id conversion - stores M49 codes directly in junction table
         """
         try:
             conn = self._get_connection()
@@ -195,7 +169,7 @@ class DatabaseService:
                 'emotion_joy': emotions.get('joy', 0.0)
             }
             
-            # Extract other analysis fields (note: no geographical_impact_location here)
+            # Extract other analysis fields (no geographic columns in articles table anymore)
             analysis_data = {
                 'source_credibility': gemini_analysis.get('source_credibility', ''),
                 'fact_checkable_claims': gemini_analysis.get('fact_checkable_claims', ''),
@@ -204,14 +178,15 @@ class DatabaseService:
                 'solution_focused': gemini_analysis.get('solution_focused', ''),
                 'age_appropriate': gemini_analysis.get('age_appropriate', ''),
                 'truth_seeking': gemini_analysis.get('truth_seeking', ''),
-                'geographical_impact_level': gemini_analysis.get('geographical_impact_level', ''),
+                'geographical_impact_level': gemini_analysis.get('geographical_impact_level', ''),  # Keep this for filtering
                 'reasoning': gemini_analysis.get('reasoning', ''),
                 'analyzer_type': 'gemini',
+                'overall_hopefulness': gemini_analysis.get('overall_hopefulness', 0.0),
                 'prompt_id': prompt_version,
                 'prompt_name': prompt_name
             }
             
-            # Combine all data (excluding geographical_impact_location)
+            # Combine all data
             all_data = {**article_data, **sentiment_data, **analysis_data}
             
             # Build INSERT query for main articles table
@@ -249,20 +224,29 @@ class DatabaseService:
                             (article_id, category_id)
                         )
             
-            # Handle locations (many-to-many relationship via junction table)
-            location_ids = gemini_analysis.get('geographical_impact_location_ids', [])
-            if location_ids:
-                for location_id in location_ids:
-                    if location_id:
+            # Handle M49 codes - NEW DIRECT STORAGE APPROACH
+            m49_codes = gemini_analysis.get('geographical_impact_m49_codes', [])
+            
+            if m49_codes:
+                for m49_code in m49_codes:
+                    if m49_code:
+                        # Store M49 code directly - no location_id conversion needed
                         cursor.execute(
-                            "INSERT OR IGNORE INTO article_locations (article_id, location_id) VALUES (?, ?)",
-                            (article_id, location_id)
+                            "INSERT OR IGNORE INTO article_locations (article_id, m49_code) VALUES (?, ?)",
+                            (article_id, m49_code)
                         )
+            else:
+                # Fallback: if no M49 codes provided, default to World (001)
+                cursor.execute(
+                    "INSERT OR IGNORE INTO article_locations (article_id, m49_code) VALUES (?, ?)",
+                    (article_id, 1)  # World
+                )
             
             conn.commit()
             conn.close()
             
             print(f"Inserted article: {article_data['title'][:50]}... (ID: {article_id})")
+            print(f"  M49 codes stored: {m49_codes}")
             return article_id
             
         except Exception as e:
@@ -287,8 +271,101 @@ class DatabaseService:
             print(f"Error checking URL existence: {e}")
             return False
 
+    def get_articles_with_locations(self, limit: int = 20, category_filter: List[str] = None, 
+                                   impact_level_filter: List[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get articles with their location information via M49 JOIN
+        Supports filtering by categories and impact levels
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Build query with optional filters
+            base_query = """
+                SELECT DISTINCT
+                    a.id,
+                    a.title,
+                    a.description,
+                    a.url_id as url,
+                    a.author,
+                    a.published_at as publishedAt,
+                    a.source_name,
+                    a.geographical_impact_level,
+                    a.overall_hopefulness,
+                    GROUP_CONCAT(DISTINCT c.name) as categories,
+                    GROUP_CONCAT(DISTINCT l.name) as location_names,
+                    GROUP_CONCAT(DISTINCT al.m49_code) as m49_codes
+                FROM articles a
+                LEFT JOIN article_categories ac ON a.id = ac.article_id
+                LEFT JOIN categories c ON ac.category_id = c.id
+                LEFT JOIN article_locations al ON a.id = al.article_id
+                LEFT JOIN locations l ON al.m49_code = l.m49_code
+            """
+            
+            where_conditions = []
+            params = []
+            
+            # Category filtering
+            if category_filter:
+                placeholders = ','.join('?' for _ in category_filter)
+                where_conditions.append(f"c.name IN ({placeholders})")
+                params.extend(category_filter)
+            
+            # Impact level filtering
+            if impact_level_filter:
+                placeholders = ','.join('?' for _ in impact_level_filter)
+                where_conditions.append(f"a.geographical_impact_level IN ({placeholders})")
+                params.extend(impact_level_filter)
+            
+            # Add WHERE clause if we have conditions
+            if where_conditions:
+                base_query += " WHERE " + " AND ".join(where_conditions)
+            
+            # Group and order
+            base_query += """
+                GROUP BY a.id
+                ORDER BY a.published_at DESC
+                LIMIT ?
+            """
+            params.append(limit)
+            
+            cursor.execute(base_query, params)
+            rows = cursor.fetchall()
+            
+            articles = []
+            for row in rows:
+                # Parse categories and locations
+                categories = row[9].split(',') if row[9] else []
+                location_names = row[10].split(',') if row[10] else ['World']
+                m49_codes = [int(code) for code in row[11].split(',') if code] if row[11] else [1]
+                
+                article = {
+                    'title': row[1],
+                    'description': row[2],
+                    'url': row[3],
+                    'author': row[4],
+                    'publishedAt': row[5],
+                    'source': {'name': row[6]},
+                    'gemini_analysis': {
+                        'categories': categories,
+                        'geographical_impact_level': row[7],
+                        'geographical_impact_location_names': location_names,
+                        'geographical_impact_m49_codes': m49_codes,
+                        'overall_hopefulness': row[8]
+                    }
+                }
+                articles.append(article)
+            
+            conn.close()
+            return articles
+            
+        except Exception as e:
+            print(f"Error fetching articles with locations: {e}")
+            return []
+
     def get_database_stats(self) -> Dict[str, Any]:
-        """Get comprehensive database statistics including junction tables"""
+        """Get comprehensive database statistics with M49 integration info"""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -325,16 +402,21 @@ class DatabaseService:
             """)
             top_categories = cursor.fetchall()
             
-            # Get top locations
+            # Get top locations by M49 code
             cursor.execute("""
-                SELECT l.name, l.level, COUNT(*) as count
+                SELECT l.name, l.hierarchy_level, l.m49_code, COUNT(*) as count
                 FROM locations l
-                JOIN article_locations al ON l.id = al.location_id
-                GROUP BY l.name, l.level
+                JOIN article_locations al ON l.m49_code = al.m49_code
+                GROUP BY l.m49_code, l.name, l.hierarchy_level
                 ORDER BY count DESC
                 LIMIT 5
             """)
             top_locations = cursor.fetchall()
+            
+            # Test M49 schema
+            cursor.execute("PRAGMA table_info(article_locations)")
+            al_schema = cursor.fetchall()
+            has_m49_column = any(col[1] == 'm49_code' for col in al_schema)
             
             conn.close()
             
@@ -346,8 +428,13 @@ class DatabaseService:
                 'location_relationships': location_relationships,
                 'articles_last_24h': recent_articles,
                 'top_categories': [{'name': cat[0], 'count': cat[1]} for cat in top_categories],
-                'top_locations': [{'name': loc[0], 'level': loc[1], 'count': loc[2]} for loc in top_locations],
-                'database_path': str(self.db_path)
+                'top_locations': [{'name': loc[0], 'level': loc[1], 'm49_code': loc[2], 'count': loc[3]} for loc in top_locations],
+                'database_path': str(self.db_path),
+                'm49_integration': {
+                    'schema_updated': has_m49_column,
+                    'junction_table': 'article_locations (article_id, m49_code)',
+                    'direct_storage': True
+                }
             }
             
         except Exception as e:
@@ -355,22 +442,36 @@ class DatabaseService:
             return {}
 
     def test_connection(self) -> Dict[str, Any]:
-        """Test database connection and junction table setup"""
+        """Test database connection and M49 integration"""
         try:
             stats = self.get_database_stats()
             
-            # Test junction table exists
+            # Test M49 join query
             conn = self._get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='article_locations'")
-            junction_exists = bool(cursor.fetchone())
+            
+            # Test that we can join on M49 codes
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM article_locations al
+                JOIN locations l ON al.m49_code = l.m49_code
+            """)
+            join_test = cursor.fetchone()[0]
+            
+            # Test article_locations schema
+            cursor.execute("PRAGMA table_info(article_locations)")
+            schema = cursor.fetchall()
+            columns = [col[1] for col in schema]
+            
             conn.close()
             
             return {
                 'status': 'success',
-                'message': 'Database connected with multi-location support',
+                'message': 'Database connected with direct M49 integration',
                 'stats': stats,
-                'junction_table_exists': junction_exists
+                'article_locations_schema': columns,
+                'm49_join_test_count': join_test,
+                'schema_version': 'm49_direct_v1'
             }
             
         except Exception as e:
