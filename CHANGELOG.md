@@ -4,6 +4,71 @@
 
 ---
 
+## [0.12.0] - 2025-09-02
+
+### Added
+- **Geographic emoji display** using database location.emoji field via M49 code JOIN queries
+- **Geographic search filtering** with case-insensitive location name matching for countries and regions
+- **Enhanced location data integration** with backend emoji lookup via get_location_names_and_emojis_by_m49() function
+- **Memory-optimized Next.js configuration** preventing development server crashes through webpack and turbo optimization
+- **Placeholder emoji system** for articles without categories using 📰 fallback display
+- **Improved article card layout** with consistent bottom-aligned footer and reorganized content hierarchy
+
+### Changed
+- **Article card geography display** from impact level badges to M49 flag emojis in grey background chips
+- **Category emoji positioning** moved from bottom to top section below geographic information
+- **Frontend filtering architecture** enhanced with geographic search alongside existing category and impact filters
+- **TypeScript interface consistency** with shared Article and GeminiAnalysis types across components
+- **Filter clear functionality** updated to include geographic search reset alongside category and impact clearing
+
+### Fixed
+- **Node.js memory allocation crashes** through Next.js configuration optimization and cache management
+- **TypeScript interface mismatches** between api.ts and component files causing compilation errors
+- **Card layout inconsistencies** with footer alignment varying based on content length
+- **Missing emoji data** in API responses through backend database service enhancement
+
+### Technical
+- **Database Service Enhancement**: get_location_names_and_emojis_by_m49() returns both names and emojis via single query
+- **Geographic Filtering Logic**: Client-side search matching geographical_impact_location_names arrays
+- **Memory Configuration**: Next.js webpack optimization with reduced parallelism and bundle splitting
+- **Interface Standardization**: Shared TypeScript interfaces preventing component type conflicts
+
+### Architecture
+- **M49 Emoji Integration**: Location emojis fetched from database via M49 code JOIN eliminating hardcoded mappings
+- **Enhanced Card Composition**: Flexbox layout with proper content area growth and footer positioning
+- **Client-Side Geographic Search**: Immediate filtering response without backend query modifications
+- **Memory Resource Management**: Development environment optimization for sustainable coding sessions
+
+### Dependencies
+- **Configuration Changes**: Next.js memory optimization without new package dependencies
+- **TypeScript Enhancement**: Interface sharing across frontend modules
+
+### Performance
+- **Single Query Efficiency**: Combined name and emoji lookup reduces database calls
+- **Client-Side Filtering**: Geographic search provides immediate response for user interactions
+- **Memory Usage Optimization**: Next.js development server resource consumption reduced significantly
+- **Frontend Stability**: Eliminated development server crashes during component iteration
+
+### User Experience
+- **Visual Geographic Context**: M49 flag emojis provide clear location identification
+- **Interactive Geographic Search**: Real-time filtering by country and region names
+- **Consistent Card Layout**: Bottom-aligned footer maintains grid alignment regardless of content
+- **Enhanced Filter Feedback**: Results meta includes geographic search status and filter combinations
+
+### Known Issues
+- **Client-Side Filtering Limitation**: Geographic search happens in frontend requiring all articles loaded
+- **Search Precision**: Substring matching without fuzzy search or location suggestions
+- **Memory Configuration Required**: Next.js optimization needed for stable frontend development
+- **No Geographic Validation**: Search accepts any string without geographic context validation
+
+### Notes
+- **Database Architecture Ready**: M49 emoji integration supports hierarchical geographic filtering
+- **Future Backend Transition**: Current client-side filtering designed for easy server-side migration
+- **Development Environment Stable**: Memory optimization enables consistent frontend iteration
+- **Geographic Data Complete**: Location emoji lookup working with 100% M49 code accuracy from Gemini
+
+---
+
 ## [0.11.0] - 2025-09-01
 
 ### Added

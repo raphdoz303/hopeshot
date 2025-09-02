@@ -26,7 +26,7 @@ database_service = DatabaseService()
 app = FastAPI(
     title="HopeShot API",
     description="Multi-source positive news aggregation with dual storage",
-    version="0.8.0"
+    version="0.11.0"
 )
 
 # Configure CORS for frontend communication
@@ -70,12 +70,13 @@ async def root():
     return {
         "message": "Hello from HopeShot backend! 🌟",
         "status": "running",
-        "version": "0.8.0",
+        "version": "0.11.0",
         "features": [
             "Multi-source news aggregation",
-            "SQLite database storage with auto-creation",
+            "SQLite database storage with M49 integration",
             "Google Sheets A/B testing data",
-            "Multi-prompt analysis framework"
+            "Multi-prompt analysis framework",
+            "Direct M49 code storage and hierarchical filtering"
         ]
     }
 
@@ -164,18 +165,30 @@ async def get_news(
                         "total_analyses": len(articles_for_sheets)
                     }
                     
-                    # For API response: show first prompt's analysis with populated location names
+                    # For API response: show first prompt's analysis with populated location names AND EMOJIS
                     for i, article in enumerate(result["articles"]):
                         if i < len(first_analyses):
                             analysis = first_analyses[i]
                             
-                            # Populate location names if M49 codes exist but names are empty
+                            # Populate location names and emojis if M49 codes exist but names are empty
                             m49_codes = analysis.get('geographical_impact_m49_codes', [])
                             location_names = analysis.get('geographical_impact_location_names', [])
                             
+                            print(f"🔍 DEBUG: Processing article {i}: M49 codes: {m49_codes}")
+                            
                             if m49_codes and not location_names:
-                                location_names = database_service.get_location_names_by_m49(m49_codes)
+                                print(f"🔍 DEBUG: Looking up M49 codes: {m49_codes}")
+                                location_names, location_emojis = database_service.get_location_names_and_emojis_by_m49(m49_codes)
+                                print(f"🔍 DEBUG: Found location_names: {location_names}")
+                                print(f"🔍 DEBUG: Found location_emojis: {location_emojis}")
                                 analysis['geographical_impact_location_names'] = location_names
+                                analysis['geographical_impact_location_emojis'] = location_emojis
+                            elif m49_codes:
+                                # Even if we have location names, get the emojis
+                                print(f"🔍 DEBUG: Already have names, getting emojis for: {m49_codes}")
+                                _, location_emojis = database_service.get_location_names_and_emojis_by_m49(m49_codes)
+                                analysis['geographical_impact_location_emojis'] = location_emojis
+                                print(f"🔍 DEBUG: Added emojis: {location_emojis}")
                             
                             article["gemini_analysis"] = analysis
                     
@@ -213,13 +226,12 @@ async def get_news(
             "message": f"News aggregation failed: {str(e)}"
         }
 
-# Copy all other endpoints from working version...
 @app.get("/api/test")
 async def test_endpoint():
     return {
         "message": "Backend connection successful!",
         "data": {
-            "timestamp": "2025-08-29",
+            "timestamp": "2025-09-02",
             "backend_status": "healthy",
             "available_sources": news_service.get_available_sources(),
             "database_stats": database_service.get_database_stats()
@@ -249,7 +261,7 @@ async def health_check():
         
         return {
             "status": "healthy",
-            "version": "0.8.0",
+            "version": "0.11.0",
             "sources": {
                 "total_configured": len(available_sources),
                 "available_sources": available_sources,

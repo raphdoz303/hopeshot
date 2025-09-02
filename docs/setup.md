@@ -801,3 +801,112 @@ npm start
 - **M49 Indexes**: Ensure indexes created for m49_code columns
 - **Junction Table Optimization**: article_locations indexed for fast queries
 - **Hierarchical Query Performance**: Recursive CTE queries for geographic filtering
+
+### Memory Optimization for Frontend Development (NEW - v0.12.0)
+
+#### Next.js Configuration Update
+Create or update `frontend/next.config.js` with memory optimization settings:
+
+```typescript
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbo: {
+      memoryLimit: 512,
+    },
+    optimizeCss: false,
+    scrollRestoration: false,
+  },
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        minSize: 20000,
+        maxSize: 250000,
+      };
+      config.optimization.minimize = false;
+      config.parallelism = 1;
+    }
+    return config;
+  },
+  poweredByHeader: false,
+  compress: false,
+  images: {
+    unoptimized: true,
+  },
+};
+
+export default nextConfig;
+```
+
+#### Frontend Development Workflow (Updated)
+```powershell
+# Clear cache before starting development
+cd frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force node_modules\.cache -ErrorAction SilentlyContinue
+
+# Start with memory allocation (Windows PowerShell)
+$env:NODE_OPTIONS="--max-old-space-size=2048"
+npm run dev
+
+# Alternative method if above fails
+npx --node-options="--max-old-space-size=2048" next dev
+```
+
+#### Memory Management Best Practices
+- Close unnecessary browser tabs before starting frontend
+- Restart frontend server if memory usage climbs during development
+- Use Next.js production build (`npm run build && npm start`) for testing when memory is limited
+- Consider Vite migration for memory-constrained development environments
+
+### Geographic Display Integration (NEW - v0.12.0)
+
+#### Backend Enhancement for Location Emojis
+Database service function for location emoji lookup:
+
+```python
+def get_location_names_and_emojis_by_m49(self, m49_codes: List[int]) -> tuple[List[str], List[str]]:
+    # Returns both location names and emojis from database JOIN
+```
+
+#### Frontend Interface Updates
+Enhanced TypeScript interfaces in `services/api.ts`:
+
+```typescript
+export interface GeminiAnalysis {
+  geographical_impact_location_emojis: string[]  // NEW: Flag emojis from database
+  // ... existing fields
+}
+```
+
+#### Component Architecture Updates
+- VerticalNewsCard: M49 flag emoji display with fallback handling
+- Geographic search: Real-time filtering by location name matching
+- Layout optimization: Consistent card footer alignment using flexbox
+
+### Troubleshooting Updates (v0.12.0)
+
+#### Memory Issues
+**Node.js crashes with "Zone Allocation failed"**:
+- Clear Next.js cache: `Remove-Item -Recurse -Force .next`
+- Set memory limit: `$env:NODE_OPTIONS="--max-old-space-size=2048"`
+- Close memory-intensive applications (Chrome tabs, VS Code extensions)
+- Use optimized Next.js configuration
+
+**TypeScript interface errors**:
+- Ensure shared interfaces imported from `services/api.ts`
+- Add new fields to interface definitions before using in components
+- Verify import paths match folder structure
+
+#### Geographic Display Issues
+**Missing location emojis**:
+- Verify backend includes `geographical_impact_location_emojis` in API response
+- Check database contains emoji data in locations table
+- Confirm M49 codes exist in database for emoji lookup
+
+**Geographic search not working**:
+- Check location names in API response match search terms
+- Verify case-insensitive filtering logic in useNews hook
+- Test with exact country names from API response data

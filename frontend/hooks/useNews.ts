@@ -19,11 +19,13 @@ interface UseNewsResult {
   selectedCategories: string[]
   selectedImpacts: string[]
   searchQuery: string
+  geographicSearch: string
   
   // Actions
   setSelectedCategories: (categories: string[]) => void
   setSelectedImpacts: (impacts: string[]) => void
   setSearchQuery: (query: string) => void
+  setGeographicSearch: (search: string) => void
   toggleCategory: (categoryName: string) => void
   toggleImpact: (impact: string) => void
   refreshNews: () => Promise<void>
@@ -45,6 +47,7 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedImpacts, setSelectedImpacts] = useState<string[]>(['Global', 'Regional'])
   const [searchQuery, setSearchQuery] = useState('')
+  const [geographicSearch, setGeographicSearch] = useState('')
 
   // Fetch categories on mount
   useEffect(() => {
@@ -117,12 +120,27 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
     })
   }, [fetchNews, searchQuery, initialPageSize])
 
-  // Filter articles based on current selections
-  const filteredArticles = transformers.filterArticles(
-    articles, 
-    selectedCategories, 
-    selectedImpacts
-  )
+  // Enhanced filter logic with geographic search
+  const filteredArticles = articles.filter(article => {
+    // Category filtering
+    const categoryMatch = selectedCategories.length === 0 || 
+      article.gemini_analysis?.categories?.some(cat => 
+        selectedCategories.includes(cat)
+      )
+
+    // Impact level filtering  
+    const impactMatch = selectedImpacts.length === 0 ||
+      (article.gemini_analysis?.geographical_impact_level && 
+       selectedImpacts.includes(article.gemini_analysis.geographical_impact_level))
+
+    // Geographic search filtering
+    const geographicMatch = !geographicSearch || 
+      article.gemini_analysis?.geographical_impact_location_names?.some(location =>
+        location.toLowerCase().includes(geographicSearch.toLowerCase())
+      )
+
+    return categoryMatch && impactMatch && geographicMatch
+  })
 
   // Sort by date (newest first)
   const sortedFilteredArticles = transformers.sortArticles(filteredArticles, 'date')
@@ -148,7 +166,8 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
   const totalArticles = articles.length
   const isFiltered = selectedCategories.length > 0 || 
                     selectedImpacts.length < 3 || 
-                    searchQuery.length > 0
+                    searchQuery.length > 0 ||
+                    geographicSearch.length > 0
 
   return {
     // Data
@@ -165,11 +184,13 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
     selectedCategories,
     selectedImpacts,
     searchQuery,
+    geographicSearch,
     
     // Actions
     setSelectedCategories,
     setSelectedImpacts,
     setSearchQuery,
+    setGeographicSearch,
     toggleCategory,
     toggleImpact,
     refreshNews,

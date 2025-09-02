@@ -105,28 +105,32 @@ class DatabaseService:
             if own_connection:
                 conn.close()
 
-    def get_location_names_by_m49(self, m49_codes: List[int]) -> List[str]:
-        """Get location names by M49 codes for API response display"""
+    def get_location_names_and_emojis_by_m49(self, m49_codes: List[int]) -> tuple[List[str], List[str]]:
+        """Get location names and emojis by M49 codes for API response display"""
         if not m49_codes:
-            return []
-            
+            return [], []
+        
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
-            
-            # Build query with placeholders
+        
+            # Build query with placeholders - fetch both name and emoji
             placeholders = ','.join('?' for _ in m49_codes)
-            query = f"SELECT name FROM locations WHERE m49_code IN ({placeholders}) ORDER BY hierarchy_level"
-            
+            query = f"SELECT name, emoji FROM locations WHERE m49_code IN ({placeholders}) ORDER BY hierarchy_level"
+        
             cursor.execute(query, m49_codes)
             results = cursor.fetchall()
             conn.close()
-            
-            return [row[0] for row in results]
-            
+        
+            # Separate names and emojis
+            names = [row[0] for row in results]
+            emojis = [row[1] if row[1] else '🌍' for row in results]  # Default emoji if missing
+        
+            return names, emojis
+        
         except Exception as e:
-            print(f"Error looking up location names: {e}")
-            return []
+            print(f"Error looking up location names and emojis: {e}")
+            return [], []
 
     def insert_article(self, article: Dict[str, Any], gemini_analysis: Dict[str, Any], 
                       prompt_version: str = None, prompt_name: str = None) -> Optional[int]:
@@ -337,8 +341,15 @@ class DatabaseService:
             for row in rows:
                 # Parse categories and locations
                 categories = row[9].split(',') if row[9] else []
-                location_names = row[10].split(',') if row[10] else ['World']
                 m49_codes = [int(code) for code in row[11].split(',') if code] if row[11] else [1]
+
+                # Use the new function to get both names and emojis
+                location_names, location_emojis = self.get_location_names_and_emojis_by_m49(m49_codes)
+
+                # Fallback to defaults if empty
+                if not location_names:
+                    location_names = ['World']
+                    location_emojis = ['🌍']
                 
                 article = {
                     'title': row[1],
@@ -351,6 +362,7 @@ class DatabaseService:
                         'categories': categories,
                         'geographical_impact_level': row[7],
                         'geographical_impact_location_names': location_names,
+                        'geographical_impact_location_emojis': location_emojis,  # ADD THIS LINE
                         'geographical_impact_m49_codes': m49_codes,
                         'overall_hopefulness': row[8]
                     }

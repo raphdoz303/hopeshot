@@ -604,3 +604,270 @@ NEWS_API_KEY=your_newsapi_key
 ```
 
 This reference ensures consistent parameter usage and prevents TypeScript 'any' errors throughout the HopeShot codebase, especially with the new M49 integration and frontend-backend connection architecture.
+
+# HopeShot Parameters Reference Guide (Updated v0.12.0)
+
+## Enhanced GeminiAnalysis Interface (Updated)
+```typescript
+interface GeminiAnalysis {
+  categories: string[]
+  geographical_impact_level: 'Global' | 'Regional' | 'National' | 'Local'
+  geographical_impact_m49_codes: number[]
+  geographical_impact_location_names: string[]
+  geographical_impact_location_emojis: string[]    // NEW: Flag emojis from database
+  sentiment: string
+  confidence_score: number
+  emotions: {
+    hope: number
+    awe: number
+    gratitude: number
+    compassion: number
+    relief: number
+    joy: number
+  }
+  source_credibility: string
+  overall_hopefulness: number
+}
+```
+
+## Enhanced UseNewsResult Interface (Updated)
+```typescript
+interface UseNewsResult {
+  // Data
+  articles: Article[]
+  categories: Category[]
+  filteredArticles: Article[]
+  
+  // Loading states
+  loading: boolean
+  categoriesLoading: boolean
+  error: string | null
+  
+  // Filter states
+  selectedCategories: string[]
+  selectedImpacts: string[]
+  searchQuery: string
+  geographicSearch: string                    // NEW: Geographic search term
+  
+  // Actions
+  setSelectedCategories: (categories: string[]) => void
+  setSelectedImpacts: (impacts: string[]) => void
+  setSearchQuery: (query: string) => void
+  setGeographicSearch: (search: string) => void  // NEW: Geographic search setter
+  toggleCategory: (categoryName: string) => void
+  toggleImpact: (impact: string) => void
+  refreshNews: () => Promise<void>
+  
+  // Meta info
+  totalArticles: number
+  isFiltered: boolean
+}
+```
+
+## Geographic Display Functions (NEW)
+
+### Database Service Functions
+```typescript
+// Enhanced location lookup with emoji support
+get_location_names_and_emojis_by_m49(m49_codes: List[int]) -> tuple[List[str], List[str]]
+
+// Parameters:
+m49_codes: number[]     // UN M49 codes to lookup
+// Returns: 
+location_names: string[]   // ["United States", "Japan"] 
+location_emojis: string[]  // ["🇺🇸", "🇯🇵"]
+```
+
+### Geographic Filtering Logic
+```typescript
+// Enhanced filtering with geographic search
+const filteredArticles = articles.filter(article => {
+  const geographicMatch = !geographicSearch || 
+    article.gemini_analysis?.geographical_impact_location_names?.some(location =>
+      location.toLowerCase().includes(geographicSearch.toLowerCase())
+    )
+  // ... other filter logic
+})
+```
+
+## Component Props Updates (Enhanced)
+
+### VerticalNewsCard Layout Parameters
+```typescript
+// Flexbox layout structure for consistent alignment
+<div className="bg-white rounded-2xl ... flex flex-col h-full">
+  <div className="p-4 flex flex-col flex-grow">
+    <div className="flex-grow space-y-3">
+      {/* Content area grows to fill space */}
+    </div>
+    <div className="... mt-auto">
+      {/* Footer always at bottom */}
+    </div>
+  </div>
+</div>
+```
+
+### Geographic Display Mapping
+```typescript
+// M49 emoji display with fallback
+{article.gemini_analysis?.geographical_impact_location_emojis?.slice(0, 3).map((emoji, index) => (
+  <span key={index} title={article.gemini_analysis?.geographical_impact_location_names?.[index]}>
+    {emoji}
+  </span>
+))}
+
+// Placeholder for missing categories
+const displayCategories = (article.gemini_analysis?.categories && article.gemini_analysis.categories.length > 0)
+  ? article.gemini_analysis.categories 
+  : ['unknown']  // Uses 📰 emoji via getCategoryData fallback
+```
+
+## API Response Structure Updates (Enhanced)
+
+### Backend Response with Emojis
+```json
+{
+  "gemini_analysis": {
+    "geographical_impact_location_names": ["Türkiye", "United States"],
+    "geographical_impact_location_emojis": ["🇹🇷", "🇺🇸"],
+    "geographical_impact_m49_codes": [792, 840],
+    "geographical_impact_level": "Regional"
+  }
+}
+```
+
+### Database Query Enhancement
+```sql
+-- Enhanced location lookup with emoji support
+SELECT name, emoji 
+FROM locations 
+WHERE m49_code IN (792, 840) 
+ORDER BY hierarchy_level
+
+-- Returns both location names and corresponding flag emojis
+```
+
+## Filter State Management (Updated)
+
+### Geographic Search Parameters
+```typescript
+// State management for geographic filtering
+const [geographicSearch, setGeographicSearch] = useState('')
+
+// Filter computation including geographic search
+const isFiltered = selectedCategories.length > 0 || 
+                  selectedImpacts.length < 3 || 
+                  searchQuery.length > 0 ||
+                  geographicSearch.length > 0  // NEW: Geographic search detection
+```
+
+### Filter Reset Logic
+```typescript
+// Enhanced clear filters including geographic search
+const clearAllFilters = () => {
+  selectedCategories.forEach((cat: string) => toggleCategory(cat))
+  selectedImpacts.forEach((impact: string) => {
+    if (!['Global', 'Regional'].includes(impact)) {
+      toggleImpact(impact)
+    }
+  })
+  setGeographicSearch('')  // NEW: Clear geographic search
+}
+```
+
+## Memory Optimization Parameters (NEW)
+
+### Next.js Configuration
+```typescript
+const nextConfig: NextConfig = {
+  experimental: {
+    turbo: { memoryLimit: 512 },
+    optimizeCss: false,
+  },
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.optimization.splitChunks = { chunks: 'all', minSize: 20000, maxSize: 250000 }
+      config.parallelism = 1  // Reduce parallel processing
+    }
+    return config
+  }
+}
+```
+
+### Development Environment
+```powershell
+# Memory allocation for Windows PowerShell
+$env:NODE_OPTIONS="--max-old-space-size=2048"
+npm run dev
+
+# Cache clearing before development
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+```
+
+## Geographic Search Patterns (NEW)
+
+### Search Matching Logic
+```typescript
+// Case-insensitive substring matching
+const geographicMatch = !geographicSearch || 
+  article.gemini_analysis?.geographical_impact_location_names?.some(location =>
+    location.toLowerCase().includes(geographicSearch.toLowerCase())
+  )
+
+// Examples that match:
+// "turkey" matches "Türkiye"
+// "united" matches "United States"  
+// "asia" matches "Asia" (if that's a location name)
+```
+
+### UI Search Implementation
+```typescript
+<input
+  type="text"
+  placeholder="Search countries or regions..."
+  value={geographicSearch}
+  onChange={(e) => setGeographicSearch(e.target.value)}
+  style={{
+    borderColor: geographicSearch ? 'var(--sky-500)' : 'var(--neutral-300)'
+  }}
+/>
+```
+
+## Card Layout Optimization (Updated)
+
+### Flexbox Structure for Consistent Alignment
+```typescript
+// Container with full height and flex column
+<div className="... flex flex-col h-full">
+  
+  // Content area that grows to fill available space
+  <div className="p-4 flex flex-col flex-grow">
+    <div className="flex-grow space-y-3">
+      {/* Variable content */}
+    </div>
+    
+    // Footer pushed to bottom with mt-auto
+    <div className="... mt-auto">
+      {/* Always at bottom regardless of content length */}
+    </div>
+  </div>
+</div>
+```
+
+### Geographic Display Layout
+```typescript
+// Top section with geography and date
+<div className="flex items-start justify-between">
+  <div className="space-y-1">
+    {/* M49 emojis in grey background */}
+    <div className="... px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--neutral-50)' }}>
+      {/* Flag emojis */}
+    </div>
+    {/* Category emojis below */}
+    <div className="flex items-center gap-1 ml-2">
+      {/* Category emojis */}
+    </div>
+  </div>
+  {/* Date aligned to center-right */}
+</div>
+```

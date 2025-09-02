@@ -18,6 +18,7 @@ export interface GeminiAnalysis {
   categories: string[]
   geographical_impact_level: 'Global' | 'Regional' | 'National' | 'Local'
   geographical_impact_location_names: string[]
+  geographical_impact_location_emojis: string[]  // ADD THIS LINE
   sentiment: string
   confidence_score: number
   emotions: {

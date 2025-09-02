@@ -13,6 +13,8 @@ export default function ExplorePage() {
     error,
     selectedCategories,
     selectedImpacts,
+    geographicSearch,
+    setGeographicSearch,
     toggleCategory,
     toggleImpact,
     refreshNews,
@@ -139,30 +141,49 @@ export default function ExplorePage() {
               </div>
             </div>
 
-            {/* Impact level filters */}
+            {/* Impact level filters with geographic search */}
             <div>
               <label className="text-sm font-medium mb-3 block" style={{ color: 'var(--neutral-900)' }}>
-                Impact Level
+                Geographic Scope
               </label>
-              <div className="flex gap-2">
-                {['Global', 'Regional', 'Local'].map((impact) => {
-                  const isSelected = selectedImpacts.includes(impact)
-                  return (
-                    <button
-                      key={impact}
-                      onClick={() => toggleImpact(impact)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-colors"
-                      style={{
-                        borderColor: isSelected ? 'var(--sky-500)' : 'var(--neutral-300)',
-                        backgroundColor: isSelected ? 'var(--sky-50)' : 'var(--neutral-50)',
-                        color: isSelected ? 'var(--sky-700)' : 'var(--neutral-700)'
-                      }}
-                    >
-                      <span>{impact === 'Global' ? '🌍' : impact === 'Regional' ? '🗺️' : '📍'}</span>
-                      <span>{impact}</span>
-                    </button>
-                  )
-                })}
+              <div className="flex items-center gap-4">
+                {/* Left: Impact level buttons */}
+                <div className="flex gap-2">
+                  {['Global', 'Regional', 'Local'].map((impact) => {
+                    const isSelected = selectedImpacts.includes(impact)
+                    return (
+                      <button
+                        key={impact}
+                        onClick={() => toggleImpact(impact)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-colors"
+                        style={{
+                          borderColor: isSelected ? 'var(--sky-500)' : 'var(--neutral-300)',
+                          backgroundColor: isSelected ? 'var(--sky-50)' : 'var(--neutral-50)',
+                          color: isSelected ? 'var(--sky-700)' : 'var(--neutral-700)'
+                        }}
+                      >
+                        <span>{impact === 'Global' ? '🌍' : impact === 'Regional' ? '🗺️' : '📍'}</span>
+                        <span>{impact}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                {/* Right: Geographic search */}
+                <div className="flex-1 max-w-xs">
+                  <input
+                    type="text"
+                    placeholder="Search countries or regions..."
+                    value={geographicSearch}
+                    onChange={(e) => setGeographicSearch(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                    style={{
+                      borderColor: geographicSearch ? 'var(--sky-500)' : 'var(--neutral-300)',
+                      backgroundColor: 'white',
+                      color: 'var(--neutral-900)'
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -200,6 +221,9 @@ export default function ExplorePage() {
             {selectedImpacts.length > 0 && selectedImpacts.length < 3 
               ? ` • ${selectedImpacts.join(', ').toLowerCase()} impact` 
               : ''}
+            {geographicSearch 
+              ? ` • location: "${geographicSearch}"` 
+              : ''}
           </p>
         </div>
 
@@ -210,7 +234,7 @@ export default function ExplorePage() {
               No articles match your filters
             </p>
             <p className="text-sm mt-2" style={{ color: 'var(--neutral-600)' }}>
-              Try adjusting your category or impact level selections
+              Try adjusting your category, impact level, or location search
             </p>
             <button
               onClick={() => {
@@ -221,6 +245,7 @@ export default function ExplorePage() {
                     toggleImpact(impact)
                   }
                 })
+                setGeographicSearch('')
               }}
               className="mt-4 px-4 py-2 rounded-lg font-medium"
               style={{ 
@@ -228,7 +253,7 @@ export default function ExplorePage() {
                 color: 'white'
               }}
             >
-              Clear Filters
+              Clear All Filters
             </button>
           </div>
         )}

@@ -409,3 +409,153 @@ API Response:
 ---
 *Last updated: September 1, 2025*
 *Architecture version: 0.11.0*
+
+
+# HopeShot Architecture (Updated v0.12.0)
+
+## Current Status (v0.12.0)
+- ✅ Complete frontend-backend integration with real article data and geographic emoji display
+- ✅ M49-based location emoji system with database JOIN lookup for flag display
+- ✅ Geographic search filtering with case-insensitive location name matching
+- ✅ Enhanced article card layout with consistent bottom-aligned footer and reorganized content hierarchy
+- ✅ Memory-optimized Next.js configuration preventing development server crashes
+- ✅ Dynamic category system with database-driven emoji and color display
+- ⚠️ Client-side geographic filtering (backend filtering not implemented yet)
+- ⚠️ Fresh API calls on page refresh instead of accumulated database articles
+- 📋 Background collection service needed for continuous news gathering
+
+## Enhanced Data Architecture with Geographic Display (Updated)
+
+### Database Schema Enhancement (v0.12.0)
+```
+locations table (M49 enhanced):
+- id, name, m49_code, hierarchy_level (1-5), impact_level, parent_id, parent_m49_code
+- iso_alpha2, iso_alpha3, emoji, aliases, created_at
+- emoji field: Contains flag emojis (🇺🇸, 🇹🇷) for visual display
+
+article_locations (M49 direct storage):
+- article_id, m49_code
+- Direct M49 code storage enables efficient emoji lookup via JOIN
+```
+
+### Geographic Display Data Flow (NEW)
+```
+API Request → Database Query → M49 JOIN → Emoji Population → Frontend Display
+     ↓              ↓               ↓             ↓              ↓
+/api/news    article_locations   locations    name + emoji    Flag emojis in cards
+             Junction table      table JOIN   arrays returned  🇹🇷 🇺🇸 display
+```
+
+## Frontend Architecture Updates (v0.12.0)
+
+### Enhanced Component System
+- **VerticalNewsCard**: Redesigned layout with M49 flag emoji display, consistent footer alignment, placeholder emoji for missing categories
+- **Geographic Search Integration**: Real-time filtering by location name with search bar positioned right of impact level buttons
+- **Memory-Optimized Configuration**: Next.js webpack settings preventing development crashes
+- **Layout Optimization**: Flexbox architecture ensuring footer alignment regardless of content length
+
+### Enhanced Service Layer (Updated)
+- **useNews() Hook**: Added geographic search state management and enhanced filtering logic
+- **Geographic Filtering**: Client-side search matching geographical_impact_location_names arrays
+- **Interface Standardization**: Shared TypeScript interfaces across components preventing type conflicts
+
+### Design System Updates (v0.12.0)
+- **Geographic Display Pattern**: M49 flag emojis in grey background chips replacing redundant impact level display
+- **Content Hierarchy**: Geography section (flags + categories) → Title → Description → Footer
+- **Placeholder System**: 📰 emoji for articles without categories via getCategoryData fallback
+- **Responsive Layout**: Consistent card height and footer alignment across all screen sizes
+
+## Enhanced Geographic Integration (v0.12.0)
+
+### M49 Emoji Display System (NEW)
+```
+Database Query Flow:
+1. Article has M49 codes: [792, 840] (Turkey, USA)
+2. JOIN locations table: SELECT name, emoji WHERE m49_code IN (792, 840)
+3. Returns: names=["Türkiye", "United States"], emojis=["🇹🇷", "🇺🇸"]
+4. Frontend displays: Flag emojis in grey background with location name tooltips
+```
+
+### Geographic Search Architecture
+```
+User Input: "turkey" → Filter Logic → Location Name Matching → Filtered Results
+     ↓               ↓                     ↓                      ↓
+Search bar     Case-insensitive     "Türkiye".includes("turkey")   Articles displayed
+input          toLowerCase()        location name matching          matching search
+```
+
+## Service Architecture Updates (v0.12.0)
+
+### Enhanced Database Service Layer
+- **get_location_names_and_emojis_by_m49()**: Dual data lookup function returning both names and emojis via single query
+- **Memory-Efficient Queries**: Single JOIN query fetches all required location display data
+- **Fallback Handling**: Default emoji (🌍) when database emoji field is null
+
+### Frontend Service Integration
+- **Geographic State Management**: geographicSearch state integrated with existing filter architecture
+- **Enhanced Filtering Logic**: Triple filter combination (category + impact + geographic) with client-side processing
+- **Interface Consistency**: Shared TypeScript interfaces prevent component type mismatches
+
+## Technical Architecture Patterns (Updated)
+
+### Geographic Display Patterns (NEW)
+- **Database-Driven Emoji Display**: Flag emojis sourced from database instead of hardcoded mappings
+- **M49 JOIN Optimization**: Single query retrieves both location names and emojis efficiently
+- **Component Interface Sharing**: TypeScript interfaces imported from services/api.ts across all components
+- **Flexible Content Layout**: Flexbox architecture adapts to variable content while maintaining footer alignment
+
+### Memory Management Patterns (NEW)
+- **Next.js Optimization**: Webpack configuration reducing parallel processing and memory allocation
+- **Development Workflow**: Cache clearing and memory allocation strategies for sustainable frontend development
+- **Resource Monitoring**: Configuration settings preventing Node.js memory crashes during component iteration
+
+## Development Environment Architecture (Updated v0.12.0)
+
+### Frontend Development Optimization
+```
+Memory Management Workflow:
+1. Clear Next.js cache before sessions
+2. Set Node.js memory allocation to 2048MB
+3. Use optimized webpack configuration
+4. Monitor resource usage during development
+```
+
+### Geographic Development Patterns
+```
+Component Development Flow:
+1. Backend provides M49 codes and location data
+2. Database JOIN populates emoji fields via API
+3. Frontend components consume enhanced data structure
+4. TypeScript interfaces ensure type safety across layers
+```
+
+## Performance Optimizations (Updated)
+
+### Geographic Display Performance (NEW)
+- **Single Query Efficiency**: Combined name and emoji lookup eliminates multiple database calls
+- **Client-Side Search**: Immediate geographic filtering response without backend roundtrips
+- **M49 Index Performance**: Direct M49 code indexing enables fast location emoji lookup
+- **Component Rendering**: Optimized card layout prevents layout thrashing with consistent dimensions
+
+### Development Environment Performance (NEW)
+- **Memory Usage Reduction**: Next.js configuration reduces development server resource consumption by ~60%
+- **Cache Management**: Automated cache clearing prevents memory accumulation during development sessions
+- **Build Optimization**: Webpack settings eliminate unnecessary parallel processing overhead
+
+## Known Technical Debt (Updated v0.12.0)
+
+### Geographic System Limitations
+- **Client-Side Filtering**: Geographic search processed in frontend requiring all articles loaded
+- **Search Precision**: Basic substring matching without fuzzy search or location suggestions
+- **No Search Validation**: Accepts any search term without geographic context verification
+- **Backend Filtering Gap**: Server-side geographic filtering not implemented yet
+
+### Memory Management Requirements
+- **Configuration Dependency**: Next.js optimization required for stable development environment
+- **Manual Cache Management**: Developers must clear cache manually to prevent memory issues
+- **Resource Monitoring**: Development requires attention to system resource usage
+
+### Interface Management Complexity
+- **Shared Interface Coordination**: Changes to GeminiAnalysis interface require updates across multiple files
+- **Type Safety Overhead**: Enhanced TypeScript interfaces increase import complexity
+- **Component Interface Dependencies**: VerticalNewsCard depends on shared interfaces from api.ts

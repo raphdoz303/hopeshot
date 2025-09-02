@@ -552,3 +552,206 @@ Services fail independently without affecting the overall system:
 
 *Last updated: September 1, 2025*
 *API version: 0.11.0*
+
+
+# HopeShot API Documentation (Updated v0.12.0)
+
+## Enhanced Response Structure with Geographic Display
+
+### **GET /api/news** (Updated with Location Emojis)
+
+**Enhanced Response with Geographic Display Integration**:
+```json
+{
+  "status": "success",
+  "query": "diplomatic talks",
+  "totalSources": 1,
+  "sourcesUsed": ["afp"],
+  "sourcesFailed": [],
+  "totalArticles": 2,
+  "crossSourceDuplicatesRemoved": 0,
+  "gemini_analyzed": true,
+  "prompt_versions": ["v1_comprehensive"],
+  "database_inserted": 2,
+  "sheets_logged": true,
+  "total_logged": 2,
+  "articles": [
+    {
+      "title": "Iran says open to US nuclear talks, rejects missile curbs",
+      "description": "Security chief Ali Larijani said Tuesday that Iran was open to nuclear talks...",
+      "url": "https://afp-apicore-prod.afp.com/objects/api/get?id=...",
+      "urlToImage": null,
+      "source": {
+        "id": "afp",
+        "name": "Agence France-Presse"
+      },
+      "author": "AFP",
+      "publishedAt": "2025-09-02T15:51:18Z",
+      "content": "Security chief Ali Larijani said Tuesday...",
+      "api_source": "afp",
+      "gemini_analysis": {
+        "article_index": 14,
+        "sentiment": "neutral",
+        "confidence_score": 0.8,
+        "emotions": {
+          "hope": 0.3,
+          "awe": 0,
+          "gratitude": 0,
+          "compassion": 0,
+          "relief": 0.2,
+          "joy": 0
+        },
+        "categories": ["diplomacy"],
+        "source_credibility": "high",
+        "fact_checkable_claims": "yes",
+        "evidence_quality": "moderate",
+        "controversy_level": "high",
+        "solution_focused": "yes",
+        "age_appropriate": "adults",
+        "truth_seeking": "yes",
+        "geographical_impact_level": "Global",
+        "overall_hopefulness": 0.4,
+        "reasoning": "Iran is open to nuclear talks with the US but rejects missile curbs.",
+        "geographical_impact_m49_codes": [364, 840],
+        "geographical_impact_location_names": [
+          "Iran (Islamic Republic of)",
+          "United States of America"
+        ],
+        "geographical_impact_location_emojis": [
+          "🇮🇷",
+          "🇺🇸"
+        ]
+      }
+    }
+  ]
+}
+```
+
+**New Response Fields (v0.12.0)**:
+- `geographical_impact_location_emojis`: Array of flag emojis sourced from database locations.emoji field
+- Emoji array corresponds 1:1 with location_names array for frontend display pairing
+- Database JOIN query populates emojis via M49 code lookup eliminating hardcoded flag mappings
+
+## Geographic Display Integration Features (NEW v0.12.0)
+
+### Location Emoji Database Integration
+The system now provides flag emojis through database queries instead of hardcoded mappings:
+
+```sql
+-- Backend query for emoji integration
+SELECT name, emoji 
+FROM locations 
+WHERE m49_code IN (364, 840) 
+ORDER BY hierarchy_level;
+
+-- API response population
+geographical_impact_location_names = [row[0] for row in results]
+geographical_impact_location_emojis = [row[1] for row in results]
+```
+
+### Frontend Geographic Display Consumption
+```typescript
+// Frontend component integration
+{article.gemini_analysis?.geographical_impact_location_emojis?.map((emoji, index) => (
+  <span key={index} title={article.gemini_analysis?.geographical_impact_location_names?.[index]}>
+    {emoji}
+  </span>
+))}
+```
+
+## Enhanced Frontend Filtering Capabilities (NEW v0.12.0)
+
+### Geographic Search Implementation
+Client-side filtering now supports location-based search with case-insensitive matching:
+
+```typescript
+// Search filter logic
+const geographicMatch = !geographicSearch || 
+  article.gemini_analysis?.geographical_impact_location_names?.some(location =>
+    location.toLowerCase().includes(geographicSearch.toLowerCase())
+  )
+```
+
+**Search Examples**:
+- `"turkey"` matches articles with `"Türkiye"` in location names
+- `"united"` matches articles with `"United States of America"` in location names
+- `"iran"` matches articles with `"Iran (Islamic Republic of)"` in location names
+
+### Enhanced Filter Combinations
+Frontend filtering now supports triple combination filtering:
+- **Category filtering**: Health, Technology, Environment, etc.
+- **Impact level filtering**: Global, Regional, Local
+- **Geographic search filtering**: Country and region name matching
+
+## Database Service API Enhancement (v0.12.0)
+
+### New Database Functions
+```python
+# Enhanced location lookup with emoji support
+def get_location_names_and_emojis_by_m49(self, m49_codes: List[int]) -> tuple[List[str], List[str]]:
+    """
+    Get location names and emojis by M49 codes for API response display
+    Returns: (location_names, location_emojis) tuple for frontend consumption
+    """
+
+# Enhanced article retrieval with geographic data
+def get_articles_with_locations(self, limit: int = 20, category_filter: List[str] = None, 
+                               impact_level_filter: List[str] = None) -> List[Dict[str, Any]]:
+    """
+    Enhanced to use dual location lookup for names and emojis
+    Supports future backend filtering implementation
+    """
+```
+
+## Performance Considerations (Updated v0.12.0)
+
+### Geographic Display Performance
+- **Single Query Efficiency**: Combined name and emoji lookup reduces database calls
+- **Client-Side Search**: Geographic filtering provides immediate response without backend delays
+- **M49 Index Performance**: Direct M49 code indexing enables fast location emoji lookup
+- **Memory Optimization**: Next.js configuration prevents development server crashes
+
+### Frontend Development Performance
+- **Reduced Memory Usage**: Webpack optimization decreases development resource consumption
+- **Stable Development Environment**: Configuration prevents Node.js memory allocation failures
+- **Component Rendering Efficiency**: Consistent card layout prevents unnecessary re-renders
+
+## Development Environment Requirements (Updated v0.12.0)
+
+### Memory Management Configuration
+```powershell
+# Required for stable frontend development
+$env:NODE_OPTIONS="--max-old-space-size=2048"
+npm run dev
+
+# Cache clearing before development sessions
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+```
+
+### TypeScript Interface Coordination
+- Shared interfaces in `services/api.ts` must include all geographic display fields
+- Component interfaces should import from shared location rather than defining locally
+- GeminiAnalysis interface updates require coordination across multiple frontend files
+
+## Known Issues & Quality Control (Updated v0.12.0)
+
+### Geographic Display System Issues
+- **Client-Side Filtering Limitation**: Geographic search requires all articles loaded in frontend memory
+- **Search Precision**: Basic substring matching without fuzzy search or autocomplete suggestions
+- **No Search Validation**: System accepts any search term without verifying geographic relevance
+- **Memory Configuration Dependency**: Frontend development requires manual memory optimization setup
+
+### Development Environment Challenges
+- **Memory Management Required**: Next.js development server needs configuration optimization for stability
+- **Interface Synchronization**: TypeScript interfaces require careful coordination across multiple files
+- **Cache Management**: Manual cache clearing needed to prevent memory accumulation during development
+
+### Suggested Improvements (v0.12.0)
+- **Backend Geographic Filtering**: Move search logic to server-side for scalability
+- **Location Autocomplete**: Add suggestions dropdown for geographic search input
+- **Fuzzy Search Integration**: Implement approximate matching for better search UX
+- **Memory Monitoring**: Add development tools for tracking frontend resource usage
+
+---
+*Last updated: September 2, 2025*
+*API version: 0.12.0*
