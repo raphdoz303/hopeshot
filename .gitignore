@@ -1,41 +1,35 @@
 # =============================================================================
-# FRONTEND DEVELOPMENT (UPDATED - v0.10.0)
+# FRONTEND (Next.js/React)
 # =============================================================================
 
 # Next.js build output
 .next/
 frontend/.next/
 out/
+frontend/out/
 
 # Node.js dependencies
 frontend/node_modules/
 node_modules/
 
 # Package manager files
-.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 package-lock.json
 yarn.lock
+.pnp
+.pnp.*
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# Testing
-coverage/
-
-# Frontend development files (NEW)
+# Frontend environment files
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
 
-# Component testing artifacts (NEW)
+# Testing and development
+coverage/
 frontend/component-screenshots/
 frontend/storybook-static/
 
@@ -56,23 +50,17 @@ venv/
 ENV/
 env/
 pip-log.txt
-pip-delete-this-directory.txt
 
-# Python testing
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Machine Learning Models (downloaded by transformers - legacy backup)
-backend/models/
-*.bin
-*.safetensors
-
 # =============================================================================
-# DATABASE FILES (UPDATED - v0.10.0)
+# DATABASE & CREDENTIALS (CRITICAL - NEVER COMMIT)
 # =============================================================================
 
-# SQLite database files (CRITICAL - NEVER COMMIT)
+# SQLite database files
 *.db
 *.sqlite
 *.sqlite3
@@ -84,26 +72,15 @@ backend/hopeshot_news.db
 *.sqlite.backup
 database_backup_*.db
 
-# Database migration logs
-migration_*.log
-database_migration_*.sql
-
-# Database debug files
-quick_check.py
-check_categories.py
-debug_*.py
-
-# Category migration artifacts (NEW)
-category_migration_*.log
-migrate_categories_backup.py
-categories_before_migration.json
-
-# Schema update logs (NEW)
-schema_update_*.log
-update_categories_*.sql
+# Google Sheets credentials
+gsheetapi_credentials.json
+*-*.json
+hopeshot-*.json
+google-sheets-*.json
+service-account-*.json
 
 # =============================================================================
-# ENVIRONMENT & CONFIGURATION
+# ENVIRONMENT & API KEYS (CRITICAL - NEVER COMMIT)
 # =============================================================================
 
 # Environment variables
@@ -115,114 +92,60 @@ update_categories_*.sql
 *.env
 backend/.env
 
-# =============================================================================
-# AI/ML SERVICES & CREDENTIALS
-# =============================================================================
-
-# Google Sheets credentials (CRITICAL - NEVER COMMIT)
-gsheetapi_credentials.json
-*-*.json
-hopeshot-*.json
-google-sheets-*.json
-service-account-*.json
-
-# Gemini API cache and temp files
-backend/gemini_cache/
-gemini_response_*.json
-gemini_debug_*.json
-
-# Legacy AI model files and caches
-backend/ai_cache/
-backend/model_cache/
-transformers_cache/
+# API keys and credentials (backup protection)
+*api_key*
+*secret*
+*password*
+credentials.json
+*.pem
+*.key
+*.crt
 
 # =============================================================================
-# A/B TESTING CONFIGURATION (KEEP IN VERSION CONTROL)
+# A/B TESTING DATA (EXCLUDE RESEARCH DATA, KEEP CONFIGS)
 # =============================================================================
 
-# IMPORTANT: prompts.yaml should be tracked for collaborative development
-# This allows team members to share and iterate on prompt variations
-# !backend/prompts.yaml  # Keep this file in version control
+# Keep configuration files in version control
+# !backend/prompts.yaml
+# !backend/sources.yaml
 
-# IMPORTANT: sources.yaml should be tracked for source configuration
-# !backend/sources.yaml  # Keep this file in version control
-
-# A/B testing data and analysis files
+# Exclude generated research data
 backend/ab_test_results/
 backend/prompt_performance_*.json
-backend/analysis_comparison_*.csv
 ab_test_data_*.json
-
-# Experimental prompt backups
-prompts_backup_*.yaml
-prompts_archive_*.yaml
-prompt_experiments/
+prompt_comparison_*.json
 
 # =============================================================================
-# DEVELOPMENT & DEBUGGING (UPDATED - v0.10.0)
+# DEVELOPMENT & DEBUGGING
 # =============================================================================
-
-# Source configuration backups
-sources_backup_*.yaml
-sources_test_*.yaml
-
-# Performance logs
-performance_*.log
-gemini_timing_*.json
-
-# AFP debug files
-afp_debug.py
-afp_response_*.json
 
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 .pnpm-debug.log*
 *.log
 
-# API response caches and test data
+# API response caches
 backend/cache/
 backend/logs/
 afp_response_sample.json
 gemini_test_output.json
 analysis_debug_*.json
 
-# Multi-prompt analysis debug files
-multi_prompt_debug_*.json
-prompt_comparison_*.json
-ab_test_debug_*.log
-
-# Temporary test files (but keep official test scripts)
+# Temporary files
 temp_*.py
 debug_*.json
 test_output.json
 quick_test_*.py
 
-# Database debug and test files
+# Database debug files
 database_debug_*.py
 db_test_*.py
 migration_test_*.py
 
-# API response debug files
-response.txt
-health.txt
-api_debug_*.json
-
-# Testing artifacts
-test_results/
-test_data_*.json
-batch_test_*.json
-
-# Frontend debugging files (NEW)
+# Frontend debugging
 frontend/api_debug_*.json
 frontend/component_debug_*.log
-frontend/mock_data_*.json
-
-# Component development artifacts (NEW)
-frontend/component_snapshots/
-frontend/.storybook/
-frontend/chromatic-build/
 
 # =============================================================================
 # IDE & EDITOR FILES
@@ -240,10 +163,6 @@ frontend/chromatic-build/
 *.swp
 *.swo
 *~
-.netrwhist
-
-# Sublime Text
-*.sublime-*
 
 # =============================================================================
 # OPERATING SYSTEM FILES
@@ -252,63 +171,16 @@ frontend/chromatic-build/
 # macOS
 .DS_Store
 .AppleDouble
-.LSOverride
 Icon?
 ._*
 
 # Windows
 Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# Linux
-*~
-.nfs*
-
 # =============================================================================
-# DEPLOYMENT & PRODUCTION
-# =============================================================================
-
-# Vercel
-.vercel
-
-# Production builds
-/build
-dist/
-
-# Container files
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-# Frontend build artifacts (NEW)
-frontend/build/
-frontend/dist/
-frontend/.vercel/
-
-# =============================================================================
-# SECURITY & SENSITIVE DATA
-# =============================================================================
-
-# API keys and credentials (backup protection)
-*api_key*
-*secret*
-*password*
-credentials.json
-*.pem
-*.key
-*.crt
-
-# Backup of critical exclusions for AI services
-gemini_*.json
-openai_*.json
-anthropic_*.json
-
-# =============================================================================
-# DATA & ANALYTICS (UPDATED - v0.10.0)
+# DATA FILES (EXCLUDE LARGE DATA, KEEP SAMPLES)
 # =============================================================================
 
 # Large data files
@@ -326,165 +198,21 @@ sheets_export_*.csv
 analysis_data_*.xlsx
 hopeshot_data_*.json
 
-# Analytics and monitoring files
-analytics_*.json
-usage_stats_*.csv
-performance_*.log
-
-# A/B testing analysis exports
-prompt_performance_analysis_*.xlsx
-comparative_analysis_*.csv
-ab_testing_metrics_*.json
-
-# Database export files
-database_export_*.json
-sqlite_dump_*.sql
-category_export_*.csv
-location_export_*.csv
-
-# Frontend analytics (NEW)
-frontend/analytics_*.json
-frontend/user_interaction_*.log
-frontend/component_performance_*.json
-
 # =============================================================================
-# PROJECT-SPECIFIC EXCLUSIONS (UPDATED - v0.10.0)
+# DEPLOYMENT & PRODUCTION
 # =============================================================================
 
-# Keep important project files (override above exclusions)
-!backend/test_sentiment.py
-!backend/test_gemini.py
-!backend/test_analysis.py
-!backend/test_full_pipeline.py
-!backend/test_sheets_gemini.py
-!backend/debug_emotions.py
-!backend/database_setup.py
-!backend/database_migration.py
-!backend/migrate_categories.py
-!backend/update_categories_schema.py
-!backend/check_db_schema.py
+# Vercel
+.vercel
+frontend/.vercel/
 
-# Keep A/B testing configuration and documentation
-!backend/prompts.yaml
-!backend/sources.yaml
-!prompts.yaml
-!sources.yaml
+# Production builds
+/build
+dist/
+frontend/build/
+frontend/dist/
 
-# Keep frontend component files (NEW)
-!frontend/src/components/*.tsx
-!frontend/src/app/**/*.tsx
-!frontend/src/app/globals.css
-
-# Version control and documentation
-!CHANGELOG.md
-!README.md
-!setup.md
-!architecture.md
-!api.md
-!.env.example
-
-# Configuration files to keep
-!requirements.txt
-!package.json
-!tailwind.config.js
-!next.config.js
-!next.config.ts
-
-# =============================================================================
-# FRONTEND DEVELOPMENT NOTES (NEW - v0.10.0)
-# =============================================================================
-
-# Component development with mock data produces various debugging artifacts
-# that should not be committed. The frontend architecture uses:
-# - Mock data for UI development (tracked in components)
-# - API integration points (tracked for backend connectivity)
-# - CSS custom properties for theming (tracked in globals.css)
-# - TypeScript interfaces (tracked with components)
-#
-# Frontend testing generates temporary files that should be excluded
-# while keeping the core component architecture and styling in version control.
-
-# =============================================================================
-# DATABASE & CATEGORY SYSTEM NOTES (NEW - v0.10.0)
-# =============================================================================
-
-# The standardized 8-category system migration creates various backup and
-# debug files that should not be committed. The category system includes:
-# - Database schema updates (tracked via migration scripts)
-# - Category metadata with visual identity (stored in database)
-# - Frontend API integration (tracked in component code)
-# - A/B testing compatibility (tracked in prompts.yaml)
-#
-# Migration artifacts and debug files are excluded while keeping
-# the migration scripts and configuration in version control.
-
-# =============================================================================
-# DUAL STORAGE ARCHITECTURE NOTES
-# =============================================================================
-
-# SQLite database files excluded but schema tracked in:
-# - database_setup.py (initial schema creation)
-# - database_migration.py (schema evolution scripts)
-# - migrate_categories.py (category standardization)
-# - services/database_service.py (auto-creation logic)
-#
-# Google Sheets integration configured via:
-# - .env file (GOOGLE_SHEETS_ID)
-# - gsheetapi_credentials.json (excluded service account)
-# - services/sheets_service.py (schema mapping)
-#
-# Frontend integration configured via:
-# - globals.css (color system)
-# - component TypeScript interfaces (tracked)
-# - API endpoint integration (tracked in components)
-
-
-# =============================================================================
-# MIGRATION AND CLEANUP FILES (NEW - v0.11.0)
-# =============================================================================
-
-# Database migration artifacts
-*.backup
-hopeshot_news.db.backup
-simplified_migration.py
-hybrid_migration_script.py
-
-# M49 CSV processing debug files
-m49_import_debug_*.log
-location_import_*.json
-geographic_validation_*.csv
-
-# =============================================================================
-# FRONTEND SERVICE LAYER (NEW - v0.11.0)  
-# =============================================================================
-
-# API service debug files
-frontend/api_debug_*.json
-frontend/service_layer_*.log
-frontend/hooks_debug_*.json
-
-# TypeScript compilation artifacts
-frontend/tsconfig.tsbuildinfo
-frontend/.tsbuildinfo
-
-# Frontend development cache issues
-frontend/.next/cache/
-frontend/node_modules/.cache/
-
-# =============================================================================
-# DATABASE DEBUGGING (UPDATED - v0.11.0)
-# =============================================================================
-
-# M49 integration debug files
-backend/m49_debug_*.py
-backend/location_lookup_*.json
-backend/geographic_test_*.py
-
-# Database inspection scripts
-backend/debug_database.py
-backend/inspect_*.py
-backend/test_m49_*.py
-
-# Junction table debug files
-backend/article_locations_debug_*.sql
-backend/m49_validation_*.log
+# Container files
+Dockerfile
+docker-compose.yml
+.dockerignore
