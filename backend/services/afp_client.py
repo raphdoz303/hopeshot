@@ -148,7 +148,7 @@ class AFPClient(BaseNewsClient):
                 
                 search_body = {
                     "dateRange": {
-                        "from": "now-7d",
+                        "from": "now-30d",
                         "to": "now"
                     },
                     "sortOrder": "desc",
@@ -160,7 +160,7 @@ class AFPClient(BaseNewsClient):
                             {
                                 "name": "class",
                                 "and": ["text"]
-                            }
+                            },
                         ]
                     }
                 }

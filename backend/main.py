@@ -226,6 +226,61 @@ async def get_news(
             "message": f"News aggregation failed: {str(e)}"
         }
 
+
+@app.get("/api/articles")
+async def get_articles(
+    limit: int = Query(20, ge=1, le=100),
+    category: Optional[str] = Query(None),
+    impact_level: Optional[str] = Query(None)
+):
+    """
+    Get articles from database (accumulated articles, not fresh API calls)
+    
+    Query Parameters:
+    - limit: Number of articles to return (1-100, default 20)
+    - category: Filter by category name (e.g., "health", "science tech")
+    - impact_level: Filter by impact level ("Global", "Regional", "National", "Local")
+    """
+    try:
+        # Prepare filters
+        category_filter = [category] if category else None
+        impact_filter = [impact_level] if impact_level else None
+        
+        # Get articles from database with M49 location integration
+        articles = database_service.get_articles_with_locations(
+            limit=limit,
+            category_filter=category_filter,
+            impact_level_filter=impact_filter
+        )
+        
+        # Get database stats for metadata
+        db_stats = database_service.get_database_stats()
+        
+        return {
+            "status": "success",
+            "source": "database",
+            "totalArticles": len(articles),
+            "articles": articles,
+            "database_stats": {
+                "total_in_db": db_stats.get('articles', 0),
+                "categories_count": db_stats.get('categories', 0),
+                "locations_count": db_stats.get('locations', 0),
+                "recent_24h": db_stats.get('articles_last_24h', 0)
+            },
+            "filters_applied": {
+                "category": category,
+                "impact_level": impact_level,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to fetch articles from database: {str(e)}",
+            "articles": []
+        }
+
 @app.get("/api/test")
 async def test_endpoint():
     return {

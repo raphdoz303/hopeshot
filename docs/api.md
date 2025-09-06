@@ -17,8 +17,8 @@ API information and status.
 {
   "message": "Hello from HopeShot backend! 🌟",
   "status": "running",
-  "version": "0.12.0",
-  "features": ["Multi-source news aggregation", "M49 integration", "A/B testing"]
+  "version": "0.13.0",
+  "features": ["Multi-source news aggregation", "M49 integration", "A/B testing", "Deduplication safeguards"]
 }
 ```
 
@@ -69,7 +69,7 @@ Get category metadata for frontend filtering.
 ```
 
 ### **GET /api/news**
-Main news endpoint with Gemini analysis and M49 geographic processing.
+Main news endpoint with Gemini analysis and automatic deduplication.
 
 **Query Parameters**:
 - `q` (optional): Search keywords
@@ -88,7 +88,8 @@ curl "http://localhost:8000/api/news?pageSize=3"
   "totalArticles": 3,
   "sourcesUsed": ["afp"],
   "gemini_analyzed": true,
-  "database_inserted": 3,
+  "database_inserted": 2,
+  "duplicate_count": 1,
   "sheets_logged": true,
   "articles": [
     {
@@ -120,6 +121,58 @@ curl "http://localhost:8000/api/news?pageSize=3"
       }
     }
   ]
+}
+```
+
+### **GET /api/articles**
+**NEW**: Get accumulated articles from database (no fresh API calls).
+
+**Query Parameters**:
+- `limit` (optional): Number of articles to return (1-100, default: 20)
+- `category` (optional): Filter by category name (e.g., "health", "science tech")
+- `impact_level` (optional): Filter by geographic impact ("Global", "Regional", "National", "Local")
+
+**Example Request**:
+```bash
+curl "http://localhost:8000/api/articles?limit=10&category=health"
+```
+
+**Response Structure**:
+```json
+{
+  "status": "success",
+  "source": "database",
+  "totalArticles": 10,
+  "articles": [
+    {
+      "title": "Medical Breakthrough Shows Promise",
+      "description": "Scientists discover innovative approach...",
+      "url": "https://example.com/article",
+      "source": {"name": "Agence France-Presse"},
+      "author": "Jane Smith",
+      "publishedAt": "2025-09-02T10:30:00Z",
+      "api_source": "database",
+      "gemini_analysis": {
+        "categories": ["health", "science tech"],
+        "geographical_impact_level": "Global",
+        "geographical_impact_location_names": ["United States", "Canada"],
+        "geographical_impact_location_emojis": ["🇺🇸", "🇨🇦"],
+        "geographical_impact_m49_codes": [840, 124],
+        "overall_hopefulness": 0.75
+      }
+    }
+  ],
+  "database_stats": {
+    "total_in_db": 245,
+    "categories_count": 8,
+    "locations_count": 278,
+    "recent_24h": 12
+  },
+  "filters_applied": {
+    "category": "health",
+    "impact_level": null,
+    "limit": 10
+  }
 }
 ```
 
@@ -174,6 +227,13 @@ Test all configured news sources and database connectivity.
 
 ---
 
+## Deduplication System
+
+- **Automatic Duplicate Detection**: All articles processed through `/api/news` are checked for duplicates before database insertion
+- **Two-Tier Detection**: URL exact matching (fast) followed by title similarity detection (80% threshold)
+- **Performance Optimized**: Title comparison limited to articles from last 30 days for scalability
+- **Duplicate Handling**: Duplicate articles are rejected with detailed logging of detection reason
+
 ## Authentication
 - **NewsAPI/NewsData**: API key authentication
 - **AFP**: OAuth2 password grant (auto-managed)
@@ -184,6 +244,7 @@ Test all configured news sources and database connectivity.
 - **Missing M49 codes**: Returns empty location_names array
 - **Service failures**: Graceful degradation, other sources continue
 - **Rate limits**: 2-minute batch spacing for Gemini API safety
+- **Duplicate articles**: Logged and rejected without error
 
 ---
-*API version: 0.12.0*
+*API version: 0.13.0*

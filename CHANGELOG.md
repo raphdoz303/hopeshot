@@ -4,6 +4,32 @@
 
 ---
 
+## [0.13.0] - 2025-09-06
+
+### Added
+- **Modular deduplication service** with URL exact matching and title similarity detection (80% threshold)
+- **Performance-optimized duplicate detection** using 30-day comparison window for scalability
+- **Database-driven content endpoint** (`/api/articles`) for accumulated articles without fresh API calls
+- **Frontend database integration** with `getArticles()` method and updated useNews hook
+- **Fresh news collection option** via `fetchFreshNews()` for manual content updates
+- **Deduplication analytics** tracking comparison scope and detection effectiveness
+
+### Changed
+- **Primary content source** from fresh API calls to accumulated database articles for better performance
+- **Article insertion pipeline** now includes automatic duplicate detection before database storage
+- **Frontend data flow** prioritizes database content with optional fresh content collection
+
+### Fixed
+- **Database column name compatibility** between deduplication service and actual schema (url_id)
+- **Integration approach** using minimal changes to preserve existing working functionality
+
+### Technical
+- **DeduplicationService**: Two-tier detection with URL matching (fast) and title similarity (comprehensive)
+- **Performance Optimization**: 30-day window reduces comparison overhead as database scales
+- **Modular Architecture**: Reusable deduplication service across multiple endpoints
+
+---
+
 ## [0.12.0] - 2025-09-02
 
 ### Added

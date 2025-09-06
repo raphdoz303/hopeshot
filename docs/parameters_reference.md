@@ -67,14 +67,84 @@ interface Location {
 }
 ```
 
+## API Response Interfaces
+
+### NewsResponse Interface (Fresh API calls)
+```typescript
+interface NewsResponse {
+  status: 'success' | 'error'
+  totalArticles: number
+  sourcesUsed?: string[]
+  gemini_analyzed?: boolean
+  database_inserted?: number
+  duplicate_count?: number
+  sheets_logged?: boolean
+  articles: Article[]
+  message?: string
+}
+```
+
+### ArticlesResponse Interface (Database content)
+```typescript
+interface ArticlesResponse {
+  status: 'success' | 'error'
+  source: string
+  totalArticles: number
+  articles: Article[]
+  database_stats: {
+    total_in_db: number
+    categories_count: number
+    locations_count: number
+    recent_24h: number
+  }
+  filters_applied: {
+    category?: string
+    impact_level?: string
+    limit: number
+  }
+  message?: string
+}
+```
+
+### CategoriesResponse Interface
+```typescript
+interface CategoriesResponse {
+  status: 'success' | 'error'
+  categories: Category[]
+  total: number
+  message?: string
+}
+```
+
+## Filter Interfaces
+
+### NewsFilters Interface (Fresh content)
+```typescript
+interface NewsFilters {
+  q?: string
+  language?: string
+  pageSize?: number
+}
+```
+
+### ArticleFilters Interface (Database content)
+```typescript
+interface ArticleFilters {
+  limit?: number
+  category?: string
+  impact_level?: string
+}
+```
+
 ## Frontend Service Layer
 
-### ApiService Class
+### ApiService Class Methods
 ```typescript
 class ApiService {
   private async fetchWithErrorHandling<T>(endpoint: string): Promise<T>
   async getCategories(): Promise<CategoriesResponse>
   async getNews(filters?: NewsFilters): Promise<NewsResponse>
+  async getArticles(filters?: ArticleFilters): Promise<ArticlesResponse>  // NEW
 }
 ```
 
@@ -98,16 +168,31 @@ interface UseNewsResult {
   toggleImpact: (impact: string) => void
   setGeographicSearch: (search: string) => void
   refreshNews: () => Promise<void>
+  fetchFreshNews: () => Promise<void>  // NEW
 }
 ```
 
-### NewsFilters Interface
+## Backend Service Interfaces
+
+### DeduplicationService Class (NEW)
 ```typescript
-interface NewsFilters {
-  q?: string
-  language?: string
-  pageSize?: number
+class DeduplicationService {
+  constructor(db_path: string)
+  is_duplicate(article: Dict) -> Tuple[bool, Optional[str]]
+  get_duplicate_stats() -> Dict
+  
+  // Private methods
+  _check_url_duplicate(url: str) -> bool
+  _check_title_similarity(title: str) -> bool
 }
+```
+
+### DatabaseService Key Methods (Updated)
+```python
+def insert_article(article: Dict, gemini_analysis: Dict, prompt_version: str = None, prompt_name: str = None) -> Optional[int]
+def get_articles_with_locations(limit: int = 20, category_filter: List[str] = None, impact_level_filter: List[str] = None) -> List[Dict[str, Any]]
+def check_url_exists(url: str) -> bool  # Used by deduplication
+def get_location_names_and_emojis_by_m49(m49_codes: List[int]) -> tuple[List[str], List[str]]
 ```
 
 ## Component Props
@@ -133,19 +218,24 @@ const M49_EXAMPLES = {
 } as const
 ```
 
-## Database Function Signatures
+## Deduplication Configuration
 
-### DatabaseService Key Methods
-```python
-def get_location_names_and_emojis_by_m49(m49_codes: List[int]) -> tuple[List[str], List[str]]
-def insert_article(article: Dict, gemini_analysis: Dict) -> Optional[int]
-def get_all_categories() -> List[Dict[str, Any]]
+### Deduplication Settings
+```typescript
+interface DeduplicationConfig {
+  title_similarity_threshold: number  // Default: 0.8 (80%)
+  comparison_window_days: number      // Default: 30
+  url_exact_match: boolean           // Default: true
+}
 ```
 
-### GeminiService Key Methods
-```python
-async def analyze_articles_batch(articles: List[Dict]) -> List[Dict]
-def _process_geographic_analysis(analysis: Dict) -> Dict
+### Duplicate Detection Response
+```typescript
+interface DuplicateCheckResult {
+  is_duplicate: boolean
+  reason: 'URL match' | 'Title similarity' | null
+  similarity_score?: number
+}
 ```
 
 ## Event Handler Patterns
@@ -174,9 +264,9 @@ categories.forEach((categoryName: string) => ...)
 ### Import Requirements
 ```typescript
 // Required imports for type safety
-import { Article, Category, GeminiAnalysis } from '../services/api'
+import { Article, Category, GeminiAnalysis, ArticlesResponse, ArticleFilters } from '../services/api'
 import { useNews } from '../hooks/useNews'
 ```
 
 ---
-*Parameters version: 0.12.0*
+*Parameters version: 0.13.0*

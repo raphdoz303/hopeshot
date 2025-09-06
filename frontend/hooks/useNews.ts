@@ -2,7 +2,7 @@
 // Custom hook for managing news data, loading states, and filtering
 
 import { useState, useEffect, useCallback } from 'react'
-import { apiService, Article, Category, NewsFilters, transformers } from '../services/api'
+import { apiService, Article, Category, NewsFilters, ArticleFilters, transformers } from '../services/api'
 
 interface UseNewsResult {
   // Data
@@ -29,6 +29,7 @@ interface UseNewsResult {
   toggleCategory: (categoryName: string) => void
   toggleImpact: (impact: string) => void
   refreshNews: () => Promise<void>
+  fetchFreshNews: () => Promise<void>
   
   // Meta info
   totalArticles: number
@@ -73,16 +74,15 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
     fetchCategories()
   }, [])
 
-  // Fetch news articles
-  const fetchNews = useCallback(async (filters: NewsFilters = {}) => {
+  // Fetch articles from database (primary method)
+  const fetchNews = useCallback(async () => {
     setLoading(true)
     setError(null)
     
     try {
-      const response = await apiService.getNews({
-        pageSize: initialPageSize,
-        language: 'en',
-        ...filters
+      // Get accumulated articles from database
+      const response = await apiService.getArticles({
+        limit: 50  // Get more since database is fast
       })
       
       if (response.status === 'success') {
@@ -90,35 +90,49 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
         const normalizedArticles = response.articles.map(transformers.normalizeArticle)
         setArticles(normalizedArticles)
         
-        console.log(`Loaded ${normalizedArticles.length} articles from API`)
-        console.log('Backend metadata:', {
-          gemini_analyzed: response.gemini_analyzed,
-          database_inserted: response.database_inserted,
-          sources_used: response.sourcesUsed
-        })
+        console.log(`📚 Loaded ${normalizedArticles.length} articles from database`)
+        console.log(`📊 Database contains ${response.database_stats.total_in_db} total articles`)
       } else {
-        throw new Error(response.message || 'Failed to fetch news')
+        throw new Error(response.message || 'Failed to fetch articles from database')
       }
     } catch (err) {
-      console.error('News fetch error:', err)
-      setError(`Failed to load news: ${err}`)
+      console.error('Database articles fetch error:', err)
+      setError(`Failed to load articles from database: ${err}`)
     } finally {
       setLoading(false)
     }
-  }, [initialPageSize])
+  }, [])
 
-  // Initial news fetch
+  // Fetch fresh news from APIs (secondary method for getting new content)
+  const fetchFreshNews = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // Get fresh articles from news APIs (triggers analysis and storage)
+      const response = await apiService.getNews({
+        pageSize: 20
+      })
+      
+      if (response.status === 'success') {
+        console.log(`🔄 Fetched ${response.articles.length} fresh articles`)
+        console.log(`💾 Added ${response.database_inserted || 0} new articles to database`)
+        
+        // After fetching fresh, reload from database to show all accumulated articles
+        await fetchNews()
+      } else {
+        throw new Error(response.message || 'Failed to fetch fresh news')
+      }
+    } catch (err) {
+      console.error('Fresh news fetch error:', err)
+      setError(`Error fetching fresh news: ${err}`)
+    }
+  }, [fetchNews])
+
+  // Initial news fetch from database
   useEffect(() => {
     fetchNews()
   }, [fetchNews])
-
-  // Refresh function for manual reload
-  const refreshNews = useCallback(async () => {
-    await fetchNews({ 
-      q: searchQuery || undefined,
-      pageSize: initialPageSize 
-    })
-  }, [fetchNews, searchQuery, initialPageSize])
 
   // Enhanced filter logic with geographic search
   const filteredArticles = articles.filter(article => {
@@ -165,7 +179,7 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
   // Computed properties
   const totalArticles = articles.length
   const isFiltered = selectedCategories.length > 0 || 
-                    selectedImpacts.length < 3 || 
+                    selectedImpacts.length < 4 || 
                     searchQuery.length > 0 ||
                     geographicSearch.length > 0
 
@@ -193,7 +207,8 @@ export function useNews(initialPageSize: number = 20): UseNewsResult {
     setGeographicSearch,
     toggleCategory,
     toggleImpact,
-    refreshNews,
+    refreshNews: fetchNews,
+    fetchFreshNews,
     
     // Meta info
     totalArticles,

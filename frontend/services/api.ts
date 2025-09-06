@@ -65,6 +65,26 @@ export interface NewsResponse {
   message?: string
 }
 
+// NEW: Interface for database articles response
+export interface ArticlesResponse {
+  status: 'success' | 'error'
+  source: string
+  totalArticles: number
+  articles: Article[]
+  database_stats: {
+    total_in_db: number
+    categories_count: number
+    locations_count: number
+    recent_24h: number
+  }
+  filters_applied: {
+    category?: string
+    impact_level?: string
+    limit: number
+  }
+  message?: string
+}
+
 export interface CategoriesResponse {
   status: 'success' | 'error'
   categories: Category[]
@@ -80,6 +100,13 @@ export interface NewsFilters {
   categories?: string[]
   impactLevels?: string[]
   dateRange?: string
+}
+
+// NEW: Filter parameters for database articles
+export interface ArticleFilters {
+  limit?: number
+  category?: string
+  impact_level?: string
 }
 
 class ApiService {
@@ -124,7 +151,7 @@ class ApiService {
     return this.fetchWithErrorHandling<CategoriesResponse>('/api/categories')
   }
 
-  // Fetch news articles with optional filtering
+  // Fetch news articles with optional filtering (fresh API calls)
   async getNews(filters: NewsFilters = {}): Promise<NewsResponse> {
     const params = new URLSearchParams()
     
@@ -133,14 +160,24 @@ class ApiService {
     if (filters.language) params.append('language', filters.language)
     if (filters.pageSize) params.append('pageSize', filters.pageSize.toString())
     
-    // TODO: Add category and impact level filtering when backend supports it
-    // if (filters.categories?.length) params.append('categories', filters.categories.join(','))
-    // if (filters.impactLevels?.length) params.append('impactLevels', filters.impactLevels.join(','))
-    
     const queryString = params.toString()
     const endpoint = `/api/news${queryString ? `?${queryString}` : ''}`
     
     return this.fetchWithErrorHandling<NewsResponse>(endpoint)
+  }
+
+  // NEW: Fetch articles from database (accumulated articles)
+  async getArticles(filters: ArticleFilters = {}): Promise<ArticlesResponse> {
+    const params = new URLSearchParams()
+    
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    if (filters.category) params.append('category', filters.category)
+    if (filters.impact_level) params.append('impact_level', filters.impact_level)
+    
+    const queryString = params.toString()
+    const endpoint = `/api/articles${queryString ? `?${queryString}` : ''}`
+    
+    return this.fetchWithErrorHandling<ArticlesResponse>(endpoint)
   }
 
   // Test backend connection

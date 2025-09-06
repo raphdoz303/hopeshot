@@ -3,12 +3,17 @@ import json
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
+from .deduplication_service import DeduplicationService
+
 
 class DatabaseService:
     def __init__(self):
         """Initialize database service with direct M49 code integration"""
         self.db_path = Path(__file__).parent.parent / 'hopeshot_news.db'
         
+        # ADD THIS LINE:
+        self.dedup_service = DeduplicationService(str(self.db_path))
+
         if not self.db_path.exists():
             raise FileNotFoundError(f"Database not found: {self.db_path}")
         
@@ -139,6 +144,10 @@ class DatabaseService:
         No more location_id conversion - stores M49 codes directly in junction table
         """
         try:
+            is_duplicate, duplicate_reason = self.dedup_service.is_duplicate(article)
+            if is_duplicate:
+                print(f"🚫 Duplicate article detected ({duplicate_reason}): {article.get('title', 'Unknown title')[:50]}...")
+                return None
             conn = self._get_connection()
             cursor = conn.cursor()
             
